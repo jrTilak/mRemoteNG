@@ -25,6 +25,8 @@ namespace mRemoteNG.Connection.Protocol.RDP
 
         protected override RdpVersion RdpProtocolVersion => RDP.RdpVersion.Rdc8;
         protected FormWindowState LastWindowState = FormWindowState.Minimized;
+        private Form _resizeHost;
+        private bool _resizeClosing;
 
         // Debounce timer to reduce flickering during resize
         private System.Timers.Timer _resizeDebounceTimer;
@@ -52,7 +54,7 @@ namespace mRemoteNG.Connection.Protocol.RDP
             // Subscribe to static/external events here (not in the constructor) so that
             // temporary probing instances created by RdpProtocolFactory.RdpVersionSupported()
             // are not rooted and do not accumulate memory leaks or spurious callbacks.
-            _frmMain.ResizeEnd += ResizeEnd;
+            RefreshResizeHost();
             SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
 
             // https://learn.microsoft.com/en-us/windows/win32/termserv/imsrdpextendedsettings-property
@@ -82,15 +84,28 @@ namespace mRemoteNG.Connection.Protocol.RDP
             }
         }
 
+        private Form RefreshResizeHost()
+        {
+            if (_resizeClosing) return null;
+            var host = RdpHostForm;
+            if (host == _resizeHost) return host;
+            if (_resizeHost != null) _resizeHost.ResizeEnd -= ResizeEnd;
+            _resizeHost = host;
+            if (_resizeHost != null) _resizeHost.ResizeEnd += ResizeEnd;
+            LastWindowState = FormWindowState.Minimized;
+            return host;
+        }
+
         protected override void Resize(object sender, EventArgs e)
         {
-            if (_frmMain == null) return;
+            var host = RefreshResizeHost();
+            if (host == null) return;
 
             // Skip resize entirely when minimized or minimizing
-            if (_frmMain.WindowState == FormWindowState.Minimized) return;
+            if (host.WindowState == FormWindowState.Minimized) return;
 
             Runtime.MessageCollector.AddMessage(MessageClass.DebugMsg,
-                $"Resize() called - WindowState={_frmMain.WindowState}, LastWindowState={LastWindowState}");
+                $"Resize() called - WindowState={host.WindowState}, LastWindowState={LastWindowState}");
 
             // Update control size during resize to keep UI synchronized
             // Actual RDP session resize is deferred to ResizeEnd() to prevent flickering
@@ -98,32 +113,33 @@ namespace mRemoteNG.Connection.Protocol.RDP
 
             // Only resize RDP session on window state changes (Maximize/Restore)
             // Manual drag-resizing will be handled by ResizeEnd()
-            if (LastWindowState != _frmMain.WindowState)
+            if (LastWindowState != host.WindowState)
             {
                 Runtime.MessageCollector.AddMessage(MessageClass.DebugMsg,
-                    $"Resize() - Window state changed from {LastWindowState} to {_frmMain.WindowState}, calling DoResizeClient()");
-                LastWindowState = _frmMain.WindowState;
+                    $"Resize() - Window state changed from {LastWindowState} to {host.WindowState}, calling DoResizeClient()");
+                LastWindowState = host.WindowState;
                 DoResizeClient();
             }
             else
             {
                 Runtime.MessageCollector.AddMessage(MessageClass.DebugMsg,
-                    $"Resize() - Window state unchanged ({_frmMain.WindowState}), deferring to ResizeEnd()");
+                    $"Resize() - Window state unchanged ({host.WindowState}), deferring to ResizeEnd()");
             }
         }
 
         protected override void ResizeEnd(object sender, EventArgs e)
         {
-            if (_frmMain == null) return;
+            var host = RefreshResizeHost();
+            if (host == null) return;
 
             // Skip resize when minimized
-            if (_frmMain.WindowState == FormWindowState.Minimized) return;
+            if (host.WindowState == FormWindowState.Minimized) return;
 
             Runtime.MessageCollector.AddMessage(MessageClass.DebugMsg,
-                $"ResizeEnd() called - WindowState={_frmMain.WindowState}");
+                $"ResizeEnd() called - WindowState={host.WindowState}");
 
             // Update window state tracking
-            LastWindowState = _frmMain.WindowState;
+            LastWindowState = host.WindowState;
 
             // Update control size immediately (no flicker)
             DoResizeControl();
@@ -254,11 +270,9 @@ namespace mRemoteNG.Connection.Protocol.RDP
 
             try
             {
-                // Use InterfaceControl.Size instead of Control.Size because Control may be docked
-                // and not reflect the actual available space
-                Size size = Fullscreen
-                    ? Screen.FromControl(Control).Bounds.Size
-                    : InterfaceControl.Size;
+                // The protected title bar always stays outside the remote desktop.
+                // Even maximized hosts use their available content area, not a monitor.
+                Size size = InterfaceControl.DisplayRectangle.Size;
 
                 Runtime.MessageCollector.AddMessage(MessageClass.DebugMsg,
                     $"Calling UpdateSessionDisplaySettings({size.Width}, {size.Height}) for '{connectionInfo.Hostname}' (Control.Size={Control.Size}, InterfaceControl.Size={InterfaceControl.Size})");
@@ -337,8 +351,13 @@ namespace mRemoteNG.Connection.Protocol.RDP
 
         public override void Close()
         {
+            _resizeClosing = true;
             // Unsubscribe from external/static events to prevent memory leaks
-            _frmMain.ResizeEnd -= ResizeEnd;
+            if (_resizeHost != null)
+            {
+                _resizeHost.ResizeEnd -= ResizeEnd;
+                _resizeHost = null;
+            }
             SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
 
             // Clean up debounce timer

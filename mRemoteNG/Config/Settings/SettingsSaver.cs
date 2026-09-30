@@ -20,7 +20,6 @@ namespace mRemoteNG.Config.Settings
                 WindowPlacement windowPlacement = new(FrmMain.Default);
                 if (frmMain.WindowState == FormWindowState.Minimized & windowPlacement.RestoreToMaximized)
                 {
-                    frmMain.Opacity = 0;
                     frmMain.WindowState = FormWindowState.Maximized;
                 }
 

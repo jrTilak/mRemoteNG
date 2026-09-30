@@ -2,13 +2,23 @@
   <?include $(sys.CURRENTDIR)Includes\Config.wxi?>
 	<Fragment>
       <StandardDirectory Id="ProgramFiles64Folder">
-        <Directory Id="INSTALLDIR" Name="$(var.ProductName)" />
+        <Directory Id="INSTALLDIR" Name="mRemoteNG" />
       </StandardDirectory>
 
       <StandardDirectory Id="DesktopFolder" />
 
-      <StandardDirectory Id="ProgramMenuFolder">
-        <Directory Id="ApplicationProgramsFolder" Name="$(var.ProductName)" />
+      <!-- Explicitly per-user even for a per-machine installation: the app can
+           update its own shortcut without requesting administrator rights. -->
+      <StandardDirectory Id="AppDataFolder">
+        <Directory Id="StartMenuMicrosoftFolder" Name="Microsoft">
+          <Directory Id="StartMenuWindowsFolder" Name="Windows">
+            <Directory Id="UserStartMenuFolder" Name="Start Menu">
+              <Directory Id="UserProgramsFolder" Name="Programs">
+                <Directory Id="ApplicationProgramsFolder" Name="mRemoteNG" />
+              </Directory>
+            </Directory>
+          </Directory>
+        </Directory>
       </StandardDirectory>
     </Fragment>
 </Wix>

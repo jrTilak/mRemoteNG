@@ -1,6 +1,8 @@
 ﻿using mRemoteNG.Tools;
 using System;
 using System.Diagnostics;
+using System.IO;
+using System.Reflection;
 using System.Windows.Forms;
 using mRemoteNG.Config.Connections;
 using mRemoteNG.Config.Putty;
@@ -18,6 +20,7 @@ namespace mRemoteNG.App
     public static class Shutdown
     {
         private static string? _updateFilePath;
+        private static bool _restartRequested;
 
         private static bool UpdatePending
         {
@@ -27,8 +30,61 @@ namespace mRemoteNG.App
         public static void Quit(string? updateFilePath = null)
         {
             _updateFilePath = updateFilePath;
-            FrmMain.Default.Close();
-            ProgramRoot.CloseSingletonInstanceMutex();
+            FrmMain main = FrmMain.Default;
+            main.Close();
+            if (main.IsDisposed)
+                ProgramRoot.CloseSingletonInstanceMutex();
+            else
+                _updateFilePath = null;
+        }
+
+        internal static void Restart()
+        {
+            FrmMain main = FrmMain.Default;
+            if (main.IsClosing || main.IsDisposed) return;
+
+            _restartRequested = true;
+            // Use the normal shutdown path, including the active-session confirmation.
+            main.Close();
+            if (!main.IsDisposed)
+                _restartRequested = false;
+        }
+
+        /// <summary>
+        /// Called only after the UI message loop exits and the single-instance mutex is released.
+        /// </summary>
+        internal static void StartRestartIfRequested()
+        {
+            if (!_restartRequested) return;
+            _restartRequested = false;
+            try
+            {
+                string executablePath = Environment.ProcessPath ?? Application.ExecutablePath;
+                var startInfo = new ProcessStartInfo(executablePath)
+                {
+                    UseShellExecute = false,
+                    WorkingDirectory = Environment.CurrentDirectory
+                };
+                // Framework-dependent developer launches can run through the dotnet host.
+                if (string.Equals(Path.GetFileNameWithoutExtension(executablePath), "dotnet", StringComparison.OrdinalIgnoreCase))
+                {
+                    string entryAssembly = Assembly.GetEntryAssembly()?.Location;
+                    if (string.IsNullOrEmpty(entryAssembly))
+                        throw new InvalidOperationException("The entry assembly could not be located for restart.");
+                    startInfo.ArgumentList.Add(entryAssembly);
+                }
+                // Preserve launch options without logging them or shell concatenation.
+                string[] arguments = Environment.GetCommandLineArgs();
+                for (int i = 1; i < arguments.Length; i++)
+                    startInfo.ArgumentList.Add(arguments[i]);
+                Process.Start(startInfo)?.Dispose();
+            }
+            catch (Exception ex)
+            {
+                // The settings are already saved; keep a failed restart actionable.
+                MessageBox.Show($"The app could not restart. Open it again to apply the saved settings.\n\n{ex.Message}",
+                    "Restart failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         public static void Cleanup(Control quickConnectToolStrip,

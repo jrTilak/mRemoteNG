@@ -470,7 +470,7 @@ namespace mRemoteNG.UI.Controls
             _cMenTreeConnectWithOptions.Text = Language.ConnectWithOptions;
             _cMenTreeConnectWithOptionsConnectToConsoleSession.Text = Language.ConnectToConsoleSession;
             _cMenTreeConnectWithOptionsDontConnectToConsoleSession.Text = Language.DontConnectToConsoleSession;
-            _cMenTreeConnectWithOptionsConnectInFullscreen.Text = Language.ConnectInFullscreen;
+            _cMenTreeConnectWithOptionsConnectInFullscreen.Text = "Connect in maximized window";
             _cMenTreeConnectWithOptionsNoCredentials.Text = Language.ConnectNoCredentials;
             _cMenTreeConnectWithOptionsChoosePanelBeforeConnecting.Text = Language.ChoosePanelBeforeConnecting;
             _cMenTreeConnectWithOptionsViewOnly.Text = Language.ConnectInViewOnlyMode;

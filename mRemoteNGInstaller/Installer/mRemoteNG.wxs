@@ -2,7 +2,9 @@
   <?include $(sys.CURRENTDIR)Includes\Config.wxi?>
   <Package Name="$(var.ProductNameWithPlatform)" Manufacturer="Profi-Kom Ltd." Version="$(var.ProductVersion)" UpgradeCode="$(var.UpgradeCode)" Language="1033" InstallerVersion="200" ProductCode="$(var.ProductCode)">
     
-    <MajorUpgrade DowngradeErrorMessage="!(loc.Upgrade_NewerVersionInstalled)" Schedule="afterInstallExecute" />
+    <!-- Remove the previous package before writing shortcuts with a new build
+         title. Keep removal inside the transaction so failure restores it. -->
+    <MajorUpgrade DowngradeErrorMessage="!(loc.Upgrade_NewerVersionInstalled)" Schedule="afterInstallInitialize" />
     <MediaTemplate EmbedCab="yes" />
     <Binary Id="CustomActions.CA.dll" SourceFile="$(var.InstallerSolutionDir)mRemoteNGInstaller\CustomActions\bin\x64\$(var.Configuration)\net481\CustomActions.CA.dll" />
     <Property Id="MsiLogging" Value="v" />
@@ -20,7 +22,7 @@
     <Property Id="MINIMUM_RDP_VERSION_INSTALLED" Value="0" Secure="yes" />
     <Property Id="REQUIREDDOTNETFRAMEWORKVERSION" Value="$(var.RequiredDotNetFrameworkVersion)" />
     <Property Id="LEGACYVERSIONINSTALLED" Value="0" />
-    <Icon Id="AppIcon.ico" SourceFile="Resources\AppIcon.ico" />
+    <Icon Id="AppIcon.ico" SourceFile="$(var.BrandingIconPath)" />
     <CustomActionRef Id="SaveCmdlineINSTALLDIR" />
 
     <InstallExecuteSequence>
@@ -52,7 +54,8 @@
       <ComponentRef Id="C.DesktopShortcut" Primary="yes" />
     </Feature>
 
-    <Feature Id="F.ApplicationStartMenuShortcut" Title="!(loc.Feature_StartMenuShortcut)" AllowAdvertise="no" Level="1">
+    <!-- Runtime settings own visibility after launch; installation uses the build default. -->
+    <Feature Id="F.UserApplicationStartMenuShortcut" Title="!(loc.Feature_StartMenuShortcut)" Display="hidden" AllowAdvertise="no" Level="$(var.BrandingStartMenuFeatureLevel)">
       <ComponentRef Id="C.ApplicationStartMenuShortcut" Primary="yes" />
     </Feature>
     

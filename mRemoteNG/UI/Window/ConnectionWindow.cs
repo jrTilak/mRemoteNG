@@ -279,7 +279,7 @@ namespace mRemoteNG.UI.Window
 
         private void ApplyLanguage()
         {
-            cmenTabFullscreen.Text = Language.Fullscreen;
+            cmenTabFullscreen.Text = "Maximize/restore window";
             cmenTabSmartSize.Text = Language.SmartSize;
             cmenTabViewOnly.Text = Language.ViewOnly;
             cmenTabStartChat.Text = Language.StartChat;

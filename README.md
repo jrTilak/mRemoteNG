@@ -76,6 +76,20 @@ The following protocols are supported:
 
 For a detailed feature list and general usage support, refer to the [Documentation](https://mremoteng.readthedocs.io/en/latest/).
 
+## Protected frameless RDP client
+
+This fork keeps Microsoft's Remote Desktop ActiveX control and the existing mRemoteNG connection and credential handling. It requests `WDA_EXCLUDEFROMCAPTURE` (`0x11`) on the application-owned top-level windows displaying RDP content. The local user can still see and operate the remote desktop. Windows 10 version 2004 (build 19041) or newer is required for this capture policy; the .NET runtime's own operating-system requirements also apply.
+
+The opaque custom title bar shows the application title, capture-protection status and a close **X**. Drag the title bar to move the window and use maximize/restore or the window edges to resize it. The close button uses the same application shutdown path as local Alt+F4. There is no separate Stop/Disconnect button in the custom frame, tray icon, normal taskbar entry or normal Alt+Tab entry. Minimization and saved tray preferences must not strand the window. ActiveX fullscreen is disabled; use the maximized borderless window with its title bar accessible.
+
+`Capture protection: enabled` means the application verified the current HWND's affinity is `0x11`. A failure displays `Capture protection: failed — error <number>`. Lifecycle events apply protection; a UI-thread timer checks the flag every 500 ms and only attempts repair if verification fails or the flag differs. The status verifies the policy flag, not the behavior of every capture implementation.
+
+This is a Windows capture policy, not DRM or process concealment. Supported capture paths should omit or blank the protected window; screenshot behavior, including ordinary GDI/BitBlt, still requires verification on Windows. The process, windows, RDP traffic and server logs remain observable. Physical cameras and unsupported capture paths are outside this protection. See Microsoft's [display-affinity documentation](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowdisplayaffinity).
+
+See [building, operation, limitations and the Windows verification checklist](docs/capture-protection.md). **Windows runtime and screenshot verification have not been performed in the Linux development environment.**
+
+Use **Tools → Options → Appearance** to set an application name/icon and hide or show its current-user Start menu shortcut. Saving offers a restart to apply changes. [`Branding.props`](Branding.props) supplies editable build defaults and the executable/installer icon and friendly name. The executable remains `mRemoteNG.exe` and remains visible in Task Manager. See [branding setup, scope and testing](docs/app-branding.md).
+
 ## Plugin development workflow
 
 Plugin projects are built from a separate plugin-only solution and loaded from the app's plugin folder at runtime.
@@ -104,13 +118,7 @@ See [README.plugins.md](README.plugins.md) for the full workflow and details.
 
 ### Supported Operating Systems
 
-- [Windows 11](https://en.wikipedia.org/wiki/Windows_11)
-- [Windows 10](https://en.wikipedia.org/wiki/Windows_10)
-- [Windows 8.1](https://en.wikipedia.org/wiki/Windows_8.1)
-- [Windows Server 2022](https://en.wikipedia.org/wiki/Windows_Server_2022)
-- [Windows Server 2019](https://en.wikipedia.org/wiki/Windows_Server_2019)
-- [Windows Server 2016](https://en.wikipedia.org/wiki/Windows_Server_2016)
-- [Windows Server 2012 R2](https://en.wikipedia.org/wiki/Windows_Server_2012_R2)
+This protected-client fork targets Windows 10 version 2004 or newer, subject to the .NET 10 runtime's operating-system requirements. Older Windows versions must not be reported as having full capture exclusion. Use Windows 11 with the SDK required by this checkout for build and test validation. Windows Server client behavior requires separate verification; the RDP host continues using Windows' built-in Remote Desktop server.
 
 #### Source package
 

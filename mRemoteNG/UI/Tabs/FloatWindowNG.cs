@@ -1,88 +1,91 @@
-﻿using System;
+using System;
 using System.Drawing;
-using System.Runtime.InteropServices;
-using System.Security.Permissions;
 using System.Windows.Forms;
+using mRemoteNG.UI.Forms;
 using WeifenLuo.WinFormsUI.Docking;
-using mRemoteNG.Themes;
 
 namespace mRemoteNG.UI.Tabs
 {
     class FloatWindowNG : FloatWindow
     {
+        private ProtectedWindowChrome _chrome;
+
         public FloatWindowNG(DockPanel dockPanel, DockPane pane)
             : base(dockPanel, pane)
         {
-            setDefaultProperties();
+            ConfigureProtectedWindow();
         }
 
         public FloatWindowNG(DockPanel dockPanel, DockPane pane, Rectangle bounds)
             : base(dockPanel, pane, bounds)
         {
-            setDefaultProperties();
+            ConfigureProtectedWindow();
         }
 
-        private void setDefaultProperties()
+        private void ConfigureProtectedWindow()
         {
-            FormBorderStyle = FormBorderStyle.Sizable;
+            FormBorderStyle = FormBorderStyle.None;
+            ShowInTaskbar = false;
+            Owner = FrmMain.Default;
 
-            // To enable Alt+Tab between your undocked forms and your main form
-            ShowInTaskbar = true;
-            Owner = null;
-
-            // Allow the Windows default behavior of maximizing/restoring the window
-            DoubleClickTitleBarToDock = true;
+            // DockPanelSuite's float-title drag temporarily adds WS_EX_LAYERED to
+            // this HWND. Use the opaque custom title drag; tabs can still be docked.
+            AllowEndUserDocking = false;
+            DoubleClickTitleBarToDock = false;
+            _chrome = new ProtectedWindowChrome(this, FrmMain.Default.CaptureProtection,
+                () => FrmMain.Default.Close());
         }
 
-        // Apply the dark/light title bar before the window is shown to avoid a white flash.
+        protected override CreateParams CreateParams =>
+            ProtectedWindowChrome.AdjustCreateParams(base.CreateParams);
+
+        // DockPanelSuite uses DisplayingRectangle instead of the form's normal
+        // layout area, so explicitly reserve the custom title bar and resize border.
+        public override Rectangle DisplayingRectangle => new(
+            Padding.Left, Padding.Top,
+            Math.Max(0, ClientSize.Width - Padding.Horizontal),
+            Math.Max(0, ClientSize.Height - Padding.Vertical));
+
         protected override void OnHandleCreated(EventArgs e)
         {
             base.OnHandleCreated(e);
-            ThemeManager.getInstance().ApplyThemeToTitleBar(this);
+            // The base constructor can create a handle before _chrome exists.
+            var main = FrmMain.Default;
+            if (!main.IsClosing && !main.IsDisposed && !main.Disposing)
+                main.CaptureProtection?.Register(this, null);
         }
 
-        [DllImport("User32.dll", CharSet = CharSet.Auto)]
-        public static extern uint SendMessage(IntPtr hWnd, int Msg, uint wParam, uint lParam);
-
-        //[SecurityPermission(SecurityAction.LinkDemand, Flags = SecurityPermissionFlag.UnmanagedCode)]
         protected override void WndProc(ref Message m)
         {
-            int WM_NCLBUTTONDOWN = 0x00A1;
-            int WM_SYSCOMMAND = 0x0112;
-
-            int SC_MINIMIZE = 0xF020;
-            int SC_RESTORE = 0xF120;
-
-            if (m.Msg == WM_NCLBUTTONDOWN)
+            if (ProtectedWindowChrome.ProcessNonClientMessage(ref m)) return;
+            const int WM_CLOSE = 0x0010;
+            if (m.Msg == WM_CLOSE && !Disposing && NestedPanes.Count > 0 &&
+                DockPanel is { IsDisposed: false, Disposing: false } && !FrmMain.Default.IsClosing)
             {
-                if (IsDisposed)
-                    return;
-
-                if ((uint)m.WParam == 8) // Check if button down occured in minimize box
-                {
-                    if (WindowState == FormWindowState.Minimized)
-                        _ = FloatWindowNG.SendMessage(Handle, (int)WM_SYSCOMMAND, (uint)SC_RESTORE, 0);
-                    else
-                        _ = FloatWindowNG.SendMessage(Handle, (int)WM_SYSCOMMAND, (uint)SC_MINIMIZE, 0);
-
-                    return;
-                }
+                // System close, Alt+F4 and the custom X use the same application exit.
+                // Empty/disposing docking hosts still follow DockPanelSuite cleanup.
+                FrmMain.Default.Close();
+                return;
             }
 
+            if (_chrome?.ProcessWindowMessage(ref m) == true) return;
             base.WndProc(ref m);
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+                _chrome?.Dispose();
+            base.Dispose(disposing);
         }
     }
 
     public class CustomFloatWindowFactory : DockPanelExtender.IFloatWindowFactory
     {
-        public FloatWindow CreateFloatWindow(DockPanel dockPanel, DockPane pane, Rectangle bounds)
-        {
-            return new FloatWindowNG(dockPanel, pane, bounds);
-        }
+        public FloatWindow CreateFloatWindow(DockPanel dockPanel, DockPane pane, Rectangle bounds) =>
+            new FloatWindowNG(dockPanel, pane, bounds);
 
-        public FloatWindow CreateFloatWindow(DockPanel dockPanel, DockPane pane)
-        {
-            return new FloatWindowNG(dockPanel, pane);
-        }
+        public FloatWindow CreateFloatWindow(DockPanel dockPanel, DockPane pane) =>
+            new FloatWindowNG(dockPanel, pane);
     }
 }

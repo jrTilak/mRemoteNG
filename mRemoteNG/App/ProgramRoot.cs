@@ -260,11 +260,14 @@ namespace mRemoteNG.App
             ShowSplashOnStaThread();
 
             Application.Run(FrmMain.Default);
+            CloseSingletonInstanceMutex();
+            Shutdown.StartRestartIfRequested();
         }
 
         public static void CloseSingletonInstanceMutex()
         {
             _mutex?.Close();
+            _mutex = null;
         }
 
         private static void StartApplicationAsSingleInstance()

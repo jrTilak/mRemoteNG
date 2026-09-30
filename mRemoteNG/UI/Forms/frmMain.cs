@@ -31,6 +31,8 @@ using System.Windows.Forms;
 using mRemoteNG.UI.Panels;
 using WeifenLuo.WinFormsUI.Docking;
 using mRemoteNG.UI.Controls;
+using mRemoteNG.UI.CaptureProtection;
+using mRemoteNG.App.Branding;
 using System.Linq;
 using mRemoteNG.Resources.Language;
 using System.Runtime.Versioning;
@@ -85,6 +87,9 @@ namespace mRemoteNG.UI.Forms
         private readonly ThemeManager _themeManager;
         private readonly FileBackupPruner _backupPruner = new();
         public static FrmOptions OptionsForm;
+        private readonly ProtectedWindowChrome _protectedChrome;
+        private string _brandingWarning;
+        public CaptureProtectionManager CaptureProtection { get; }
 
         /// <summary>
         /// Recreates the OptionsForm if it has been disposed.
@@ -114,7 +119,9 @@ namespace mRemoteNG.UI.Forms
         private FrmMain()
         {
             _showFullPathInTitle = Properties.OptionsAppearancePage.Default.ShowCompleteConsPathInTitle;
+            CaptureProtection = new CaptureProtectionManager(message => Logger.Instance.Log?.Warn(message));
             InitializeComponent();
+            _protectedChrome = new ProtectedWindowChrome(this, CaptureProtection);
 
             Screen targetScreen = (Screen.AllScreens.Length > 1) ? Screen.AllScreens[1] : Screen.AllScreens[0];
 
@@ -213,6 +220,10 @@ namespace mRemoteNG.UI.Forms
 
             MessageCollectorSetup.SetupMessageCollector(messageCollector, _messageWriters);
             MessageCollectorSetup.BuildMessageWritersFromSettings(_messageWriters);
+            _brandingWarning = ApplicationBranding.Initialize();
+            Text = ApplicationBranding.DisplayName;
+            if (_brandingWarning != null)
+                Logger.Instance.Log?.Warn(_brandingWarning);
  
             Startup.Instance.InitializeProgram(messageCollector);
             Runtime.PluginService.LoadPlugins();
@@ -262,17 +273,11 @@ namespace mRemoteNG.UI.Forms
             ApplyLanguage();
             toolsMenu.RefreshPluginItems();
 
-            Opacity = 1;
             //Fix MagicRemove , revision on panel strategy for mdi
 
             pnlDock.ShowDocumentIcon = true;
 
-            if (Properties.OptionsStartupExitPage.Default.StartMinimized)
-            {
-                WindowState = FormWindowState.Minimized;
-                if (Properties.OptionsAppearancePage.Default.MinimizeToTray)
-                    ShowInTaskbar = false;
-            }
+            // A tool window has no taskbar/tray recovery path; ignore legacy StartMinimized.
             if (Properties.OptionsStartupExitPage.Default.StartFullScreen)
             {
                 Fullscreen.Value = true;
@@ -391,13 +396,13 @@ namespace mRemoteNG.UI.Forms
         protected override void OnHandleCreated(EventArgs e)
         {
             base.OnHandleCreated(e);
-            _themeManager.ApplyThemeToTitleBar(this);
+            _themeManager?.ApplyThemeToTitleBar(this);
         }
 
         //Theming support
         private void ApplyTheme()
         {
-            _themeManager.ApplyThemeToTitleBar(this);
+            _themeManager?.ApplyThemeToTitleBar(this);
 
             if (!_themeManager.ThemingActive)
             {
@@ -441,6 +446,13 @@ namespace mRemoteNG.UI.Forms
             Activate();
             BringToFront();
             NativeMethods.SetForegroundWindow(Handle);
+
+            if (_brandingWarning != null)
+            {
+                // Show after the splash closes, so a startup shell/icon error remains actionable.
+                MessageBox.Show(this, _brandingWarning, "App appearance", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                _brandingWarning = null;
+            }
 
             PromptForUpdatesPreference();
             await CheckForUpdates();
@@ -515,63 +527,52 @@ namespace mRemoteNG.UI.Forms
 
         private void FrmMain_FormClosing(object sender, FormClosingEventArgs e)
         {
-            ProgramRoot.UiCultureChanged -= OnUiCultureChanged;
-            if (Runtime.WindowList != null)
+            if (e.Cancel || IsClosing) return;
+
+            // Count all shown connection forms, including floating and auto-hidden tabs.
+            ConnectionTab[] tabs = Application.OpenForms.OfType<ConnectionTab>().ToArray();
+            int openConnections = tabs.Count(tab => tab.Tag is InterfaceControl);
+            int confirmation = Properties.Settings.Default.ConfirmCloseConnection;
+            if (openConnections > 0 &&
+                (confirmation == (int)ConfirmCloseEnum.All ||
+                 confirmation == (int)ConfirmCloseEnum.Exit ||
+                 (confirmation == (int)ConfirmCloseEnum.Multiple && openConnections > 1)))
             {
-                foreach (BaseWindow window in Runtime.WindowList)
+                DialogResult result = CTaskDialog.MessageBox(this, ApplicationBranding.DisplayName, Language.ConfirmExitMainInstruction, "", "", "", Language.CheckboxDoNotShowThisMessageAgain, ETaskDialogButtons.YesNo, ESysIcons.Question, ESysIcons.Question);
+                if (CTaskDialog.VerificationChecked)
+                    Properties.Settings.Default.ConfirmCloseConnection = (int)ConfirmCloseEnum.Never;
+                if (result != DialogResult.Yes)
                 {
-                    window.Close();
-                }
-            }
-
-            IsClosing = true;
-
-            Hide();
-
-            if (Properties.OptionsAppearancePage.Default.CloseToTray)
-            {
-                Runtime.NotificationAreaIcon ??= new NotificationAreaIcon();
-
-                if (WindowState == FormWindowState.Normal || WindowState == FormWindowState.Maximized)
-                {
-                    Hide();
-                    WindowState = FormWindowState.Minimized;
                     e.Cancel = true;
                     return;
                 }
             }
 
-            if (!(Runtime.WindowList == null || Runtime.WindowList.Count == 0))
+            // Resolve pending edits before disconnecting anything. A child window's
+            // canceled Close() cannot cancel its parent application's shutdown.
+            if (OptionsForm is { IsDisposed: false } && !OptionsForm.ConfirmClose(this, offerRestart: false))
             {
-                int openConnections = 0;
-                if (pnlDock.Contents.Count > 0)
-                {
-                    foreach (IDockContent dc in pnlDock.Contents)
-                    {
-                        if (dc is not ConnectionWindow cw) continue;
-                        if (cw.Controls.Count < 1) continue;
-                        if (cw.Controls[0] is not DockPanel dp) continue;
-                        if (dp.Contents.Count > 0)
-                            openConnections += dp.Contents.Count;
-                    }
-                }
+                e.Cancel = true;
+                return;
+            }
 
-                if (openConnections > 0 &&
-                    (Properties.Settings.Default.ConfirmCloseConnection == (int)ConfirmCloseEnum.All |
-                     (Properties.Settings.Default.ConfirmCloseConnection == (int)ConfirmCloseEnum.Multiple &
-                      openConnections > 1) || Properties.Settings.Default.ConfirmCloseConnection == (int)ConfirmCloseEnum.Exit))
+            // Commit to closing only after all confirmations. All close entry points use this path.
+            IsClosing = true;
+            ProgramRoot.UiCultureChanged -= OnUiCultureChanged;
+            _themeManager.ThemeChanged -= ApplyTheme;
+            Properties.Settings.Default.PropertyChanged -= OnApplicationSettingChanged;
+            tmrAutoSave.Stop();
+            foreach (ConnectionTab tab in tabs)
+            {
+                if (tab.IsDisposed) continue;
+                tab.silentClose = true;
+                tab.Close();
+            }
+            if (Runtime.WindowList != null)
+            {
+                foreach (BaseWindow window in Runtime.WindowList.Cast<BaseWindow>().ToArray())
                 {
-                    DialogResult result = CTaskDialog.MessageBox(this, Application.ProductName, Language.ConfirmExitMainInstruction, "", "", "", Language.CheckboxDoNotShowThisMessageAgain, ETaskDialogButtons.YesNo, ESysIcons.Question, ESysIcons.Question);
-                    if (CTaskDialog.VerificationChecked)
-                    {
-                        Properties.Settings.Default.ConfirmCloseConnection = (int)ConfirmCloseEnum.Never;
-                    }
-
-                    if (result == DialogResult.No)
-                    {
-                        e.Cancel = true;
-                        return;
-                    }
+                    if (!window.IsDisposed) window.Close();
                 }
             }
 
@@ -579,6 +580,7 @@ namespace mRemoteNG.UI.Forms
             SystemEvents.DisplaySettingsChanged -= _advancedWindowMenu.OnDisplayChanged;
             Shutdown.Cleanup(_quickConnectToolStrip, _externalToolsToolStrip, _multiSshToolStrip, this);
 
+            CaptureProtection.Dispose();
             Shutdown.StartUpdate();
 
             Debug.Print("[END] - " + Convert.ToString(DateTime.Now, CultureInfo.InvariantCulture));
@@ -605,17 +607,10 @@ namespace mRemoteNG.UI.Forms
 
         private void FrmMain_Resize(object sender, EventArgs e)
         {
-            if (WindowState == FormWindowState.Minimized)
-            {
-                if (!Properties.OptionsAppearancePage.Default.MinimizeToTray) return;
-                Runtime.NotificationAreaIcon ??= new NotificationAreaIcon();
-
-                Hide();
-            }
-            else
-            {
+            // The custom chrome restores attempted minimization after the manager
+            // observes the transition, so restoration triggers immediate protection.
+            if (WindowState != FormWindowState.Minimized)
                 PreviousWindowState = WindowState;
-            }
         }
 
         private void FrmMain_ResizeEnd(object sender, EventArgs e)
@@ -625,8 +620,11 @@ namespace mRemoteNG.UI.Forms
             ActivateConnection();
         }
 
+        protected override CreateParams CreateParams => ProtectedWindowChrome.AdjustCreateParams(base.CreateParams);
+
         protected override void WndProc(ref System.Windows.Forms.Message m)
         {
+            if (ProtectedWindowChrome.ProcessNonClientMessage(ref m) || _protectedChrome?.ProcessWindowMessage(ref m) == true) return;
             // Listen for and handle operating system messages
             try
             {
@@ -691,7 +689,7 @@ namespace mRemoteNG.UI.Forms
                     case NativeMethods.WM_SYSCOMMAND:
                         if (m.WParam == new IntPtr(0))
                             ShowHideMenu();
-                        Screen screen = _advancedWindowMenu.GetScreenById(m.WParam.ToInt32());
+                        Screen screen = _advancedWindowMenu?.GetScreenById(m.WParam.ToInt32());
                         if (screen != null)
                         {
                             Screens.SendFormToScreen(screen);
@@ -778,7 +776,7 @@ namespace mRemoteNG.UI.Forms
                 return;
             }
 
-            StringBuilder titleBuilder = new(Application.ProductName);
+            StringBuilder titleBuilder = new(ApplicationBranding.DisplayName);
             const string separator = " - ";
 
             if (Runtime.ConnectionsService.IsConnectionsFileLoaded)

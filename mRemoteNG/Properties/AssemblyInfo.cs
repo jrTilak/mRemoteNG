@@ -13,8 +13,7 @@ using System.Resources;
 //Build nr: 3703
 
 // General Information
-[assembly: AssemblyTitle("mRemoteNG")]
-[assembly: AssemblyDescription("Multi-Remote Next Generation Connection Manager")]
+// Title and description are generated from Branding.props during compilation.
 [assembly: AssemblyConfiguration("x64")]
 [assembly: AssemblyCompany("Profi-KOM Ltd.")]
 [assembly: AssemblyProduct("mRemoteNG Connection Manager")]

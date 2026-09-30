@@ -1,0 +1,46 @@
+<Project>
+  <Target Name="ValidateBranding" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <_BrandingIconExtension>$([System.IO.Path]::GetExtension('$(ResolvedBrandingIconPath)'))</_BrandingIconExtension>
+      <_BrandingNameIsValid>$([System.Text.RegularExpressions.Regex]::IsMatch('$(ResolvedBrandingDisplayName)', '^(?=.{1,80}$)(?!.*[&lt;&gt;:&quot;/\\|?*\p{Cc}])(?!.*[ .]$)(?!(?i:CON|PRN|AUX|NUL|CONIN\$|CONOUT\$|COM[1-9¹²³]|LPT[1-9¹²³])\s*(?:\.|$)).+$'))</_BrandingNameIsValid>
+    </PropertyGroup>
+    <Error Condition="'$(_BrandingNameIsValid)' != 'true'"
+           Text="BrandingDisplayName must be 1–80 characters, with no Windows filename-invalid characters, reserved device names or trailing period." />
+    <Error Condition="'$(BrandingShowInStartMenu)' != 'true' and '$(BrandingShowInStartMenu)' != 'false'"
+           Text="BrandingShowInStartMenu must be true or false." />
+    <Error Condition="!Exists('$(ResolvedBrandingIconPath)')"
+           Text="BrandingIconPath does not exist: $(ResolvedBrandingIconPath)" />
+    <Error Condition="'$(_BrandingIconExtension)' != '.ico'"
+           Text="BrandingIconPath must refer to a Windows .ico file." />
+  </Target>
+
+  <!-- Separate from the T4 version file, so a Visual Studio transform cannot
+       replace custom branding. WriteCodeFragment handles C# string escaping. -->
+  <Target Name="GenerateBrandingAssemblyInfo" BeforeTargets="CoreCompile"
+          DependsOnTargets="ValidateBranding" Condition="'$(GenerateBrandingAssemblyInfo)' == 'true'">
+    <PropertyGroup>
+      <BrandingAssemblyInfoFile>$(IntermediateOutputPath)Branding.AssemblyInfo.g.cs</BrandingAssemblyInfoFile>
+    </PropertyGroup>
+    <ItemGroup>
+      <BrandingAssemblyAttribute Include="System.Reflection.AssemblyTitleAttribute">
+        <_Parameter1>$(ResolvedBrandingDisplayName)</_Parameter1>
+      </BrandingAssemblyAttribute>
+      <BrandingAssemblyAttribute Include="System.Reflection.AssemblyDescriptionAttribute">
+        <_Parameter1>$(ResolvedBrandingDisplayName)</_Parameter1>
+      </BrandingAssemblyAttribute>
+      <BrandingAssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+        <_Parameter1>BrandingDisplayName</_Parameter1>
+        <_Parameter2>$(ResolvedBrandingDisplayName)</_Parameter2>
+      </BrandingAssemblyAttribute>
+      <BrandingAssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+        <_Parameter1>BrandingShowInStartMenu</_Parameter1>
+        <_Parameter2>$(BrandingShowInStartMenu)</_Parameter2>
+      </BrandingAssemblyAttribute>
+    </ItemGroup>
+    <WriteCodeFragment Language="C#" OutputFile="$(BrandingAssemblyInfoFile)"
+                       AssemblyAttributes="@(BrandingAssemblyAttribute)">
+      <Output TaskParameter="OutputFile" ItemName="Compile" />
+      <Output TaskParameter="OutputFile" ItemName="FileWrites" />
+    </WriteCodeFragment>
+  </Target>
+</Project>

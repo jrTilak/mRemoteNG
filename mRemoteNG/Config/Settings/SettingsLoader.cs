@@ -52,7 +52,6 @@ namespace mRemoteNG.Config.Settings
                 SetKioskMode();
 
                 SetPuttyPath();
-                SetShowSystemTrayIcon();
                 SetAutoSave();
                 LoadExternalAppsFromXml();
 
@@ -127,12 +126,6 @@ namespace mRemoteNG.Config.Settings
         {
             if (!Properties.App.Default.MainFormKiosk) return;
             MainForm.Fullscreen.Value = true;
-        }
-
-        private static void SetShowSystemTrayIcon()
-        {
-            if (Properties.OptionsAppearancePage.Default.ShowSystemTrayIcon)
-                Runtime.NotificationAreaIcon = new NotificationAreaIcon();
         }
 
         private static void SetPuttyPath()

@@ -1,0 +1,14 @@
+<Project>
+  <!-- Edit these defaults, or pass the same properties with MSBuild -p: switches.
+       Relative icon paths are resolved from this file's directory (the repo root).
+       Use a Windows .ico file, ideally containing 16, 32, 48 and 256 pixel images.
+       Existing saved user preferences take priority over these runtime defaults. -->
+  <PropertyGroup>
+    <BrandingDisplayName Condition="'$(BrandingDisplayName)' == ''">mRemoteNG</BrandingDisplayName>
+    <BrandingIconPath Condition="'$(BrandingIconPath)' == ''">mRemoteNG/Icons/mRemoteNG.ico</BrandingIconPath>
+    <BrandingShowInStartMenu Condition="'$(BrandingShowInStartMenu)' == ''">true</BrandingShowInStartMenu>
+    <BrandingRootDirectory>$(MSBuildThisFileDirectory)</BrandingRootDirectory>
+    <ResolvedBrandingDisplayName>$(BrandingDisplayName.Trim())</ResolvedBrandingDisplayName>
+    <ResolvedBrandingIconPath>$([MSBuild]::NormalizePath('$(BrandingRootDirectory)', '$(BrandingIconPath)'))</ResolvedBrandingIconPath>
+  </PropertyGroup>
+</Project>

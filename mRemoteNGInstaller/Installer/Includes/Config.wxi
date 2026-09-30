@@ -1,12 +1,13 @@
 ﻿<Include xmlns="http://wixtoolset.org/schemas/v4/wxs">
-  <?define ProductName = "mRemoteNG" ?>
+  <?define ProductName = "$(var.BrandingDisplayName)" ?>
   <?define Company = "Profi-Kom Ltd." ?>
   <?define UpgradeCode = "dd678a54-ca75-4791-8dfe-d818095684f8" ?>
   <?define ProductCode = "*" ?>
   <?define ProductVersion = "1.78.2.0" ?>
   <?define ProductVersionDisplay = "1.78.2-dev" ?>
   <?define ProductLanguage = 1033 ?>
-  <?define ExeProcessName = "$(var.ProductName).exe" ?>
+  <!-- Branding must not change the executable, registry or upgrade identity. -->
+  <?define ExeProcessName = "mRemoteNG.exe" ?>
 
   <?define RequiredDotNetFrameworkMajorVersion = "4" ?>
   <?define RequiredDotNetFrameworkMinorVersion = "0" ?>

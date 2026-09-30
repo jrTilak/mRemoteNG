@@ -13,6 +13,9 @@ namespace mRemoteNG.UI.Forms
 			{
 				if (disposing)
 				{
+                    _protectedChrome?.Dispose();
+                    CaptureProtection?.Dispose();
+                    App.Branding.ApplicationBranding.Dispose();
                     if(components != null)
                         components.Dispose();
 
@@ -223,7 +226,9 @@ namespace mRemoteNG.UI.Forms
             this.MainMenuStrip = this.msMain;
             this.MinimumSize = new System.Drawing.Size(400, 400);
             this.Name = "FrmMain";
-            this.Opacity = 0D;
+            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
+            this.ShowInTaskbar = false;
+            this.MinimizeBox = false;
             this.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
             this.Text = " ";
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.FrmMain_FormClosing);

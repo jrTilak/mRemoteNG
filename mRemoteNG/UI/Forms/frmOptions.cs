@@ -11,6 +11,8 @@ using System.Configuration;
 using mRemoteNG.Properties;
 using mRemoteNG.Resources.Language;
 using System.Runtime.Versioning;
+using System.IO;
+using System.Security;
 #endregion
 
 namespace mRemoteNG.UI.Forms
@@ -363,38 +365,76 @@ namespace mRemoteNG.UI.Forms
         private void BtnOK_Click(object sender, EventArgs e)
         {
             Logger.Instance.Log?.Debug($"[BtnOK_Click] START");
-            SaveOptions();
+            if (!SaveOptions(out bool brandingChanged)) return;
             ClearChangeFlags();
             CloseRequested?.Invoke(this, EventArgs.Empty);
+            OfferBrandingRestart(brandingChanged);
             Logger.Instance.Log?.Debug($"[BtnOK_Click] END");
         }
 
         private void BtnApply_Click(object sender, EventArgs e)
         {
             Logger.Instance.Log?.Debug($"[BtnApply_Click] START");
-            SaveOptions();
+            if (!SaveOptions(out bool brandingChanged)) return;
             // Clear change flags after applying
             ClearChangeFlags();
+            OfferBrandingRestart(brandingChanged);
             Logger.Instance.Log?.Debug($"[BtnApply_Click] END");
         }
 
-        private void SaveOptions()
+        private bool SaveOptions(out bool brandingChanged)
         {
+            brandingChanged = false;
             string previousOverrideCulture = Settings.Default.OverrideUICulture;
+            AppearancePage appearance = _optionPages.OfType<AppearancePage>().FirstOrDefault();
 
-            foreach (OptionsPage page in _optionPages)
+            try
             {
-                Logger.Instance.Log?.Debug($"[SaveOptions] Saving page: {page.PageName}");
-                page.SaveSettings();
-            }
+                // Validate first so a bad name or icon does not commit other page edits.
+                appearance?.ValidateBrandingPreferences();
+                foreach (OptionsPage page in _optionPages)
+                {
+                    Logger.Instance.Log?.Debug($"[SaveOptions] Saving page: {page.PageName}");
+                    page.SaveSettings();
+                }
 
-            Logger.Instance.Log?.Debug($"[SaveOptions] Configuration file: {(ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None)).FilePath}");
-            Settings.Default.Save();
+                Logger.Instance.Log?.Debug($"[SaveOptions] Configuration file: {(ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None)).FilePath}");
+                Settings.Default.Save();
+                // Persist branding last, before offering to restart or clearing dirty flags.
+                brandingChanged = appearance?.SaveBrandingPreferences() ?? false;
+            }
+            catch (Exception ex) when (ex is ArgumentException || ex is IOException ||
+                                       ex is UnauthorizedAccessException || ex is SecurityException ||
+                                       ex is ConfigurationErrorsException)
+            {
+                MessageBox.Show(this, $"The options could not be saved.\n\n{ex.Message}",
+                    Language.Options, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+            }
 
             if (!string.Equals(previousOverrideCulture, Settings.Default.OverrideUICulture, StringComparison.Ordinal))
             {
                 ProgramRoot.ApplyUiCulture(Settings.Default.OverrideUICulture);
                 RefreshUiLanguage();
+            }
+            return true;
+        }
+
+        private static void OfferBrandingRestart(bool brandingChanged)
+        {
+            if (!brandingChanged) return;
+            FrmMain main = FrmMain.Default;
+            // An application shutdown may also save an open Options page.
+            if (main.IsClosing || main.IsDisposed) return;
+            DialogResult result = MessageBox.Show(main,
+                "The app name, icon or Start menu setting has been saved. Restart now to apply it?\n\n" +
+                "Restarting disconnects active sessions. If you choose No, the changes apply the next time you open the app.",
+                "Restart to apply changes", MessageBoxButtons.YesNo, MessageBoxIcon.Question,
+                MessageBoxDefaultButton.Button2);
+            if (result == DialogResult.Yes)
+            {
+                // Finish the current Save/Options closing event before closing the main form.
+                main.BeginInvoke((MethodInvoker)Shutdown.Restart);
             }
         }
 
@@ -476,10 +516,37 @@ namespace mRemoteNG.UI.Forms
         /// <summary>
         /// Saves all option page settings to disk.
         /// </summary>
-        internal void SaveAllOptions()
+        internal bool SaveAllOptions(bool offerRestart = true)
         {
-            SaveOptions();
+            if (!SaveOptions(out bool brandingChanged)) return false;
             ClearChangeFlags();
+            if (offerRestart)
+                OfferBrandingRestart(brandingChanged);
+            return true;
+        }
+
+        /// <summary>Resolve pending edits without closing any windows or disconnecting sessions.</summary>
+        internal bool ConfirmClose(IWin32Window owner, bool offerRestart = true) => ConfirmPendingChanges(
+            HasUnsavedChanges(),
+            () => MessageBox.Show(owner, Language.SaveOptionsBeforeClosing, Language.Options,
+                MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question),
+            () => SaveAllOptions(offerRestart),
+            DiscardChanges);
+
+        internal static bool ConfirmPendingChanges(bool hasChanges, Func<DialogResult> confirmSave,
+            Func<bool> saveChanges, Action discardChanges)
+        {
+            if (!hasChanges) return true;
+            switch (confirmSave())
+            {
+                case DialogResult.Yes:
+                    return saveChanges();
+                case DialogResult.No:
+                    discardChanges();
+                    return true;
+                default:
+                    return false;
+            }
         }
 
         /// <summary>

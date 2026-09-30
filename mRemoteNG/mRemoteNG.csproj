@@ -1,5 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="..\Branding.props" />
   <PropertyGroup>
     <Platforms>x64;arm64</Platforms>
     <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
@@ -13,7 +14,8 @@
     <TransformOnBuild>true</TransformOnBuild>
     <TransformOutOfDateOnly>false</TransformOutOfDateOnly>
     <OverwriteReadOnlyOutputFiles>true</OverwriteReadOnlyOutputFiles>
-    <ApplicationIcon>Icons\mRemoteNG.ico</ApplicationIcon>
+    <ApplicationIcon>$(ResolvedBrandingIconPath)</ApplicationIcon>
+    <GenerateBrandingAssemblyInfo>true</GenerateBrandingAssemblyInfo>
     <Version>1.78.2-dev</Version>
     <Description>Multi-protocol remote connections manager</Description>
     <Copyright>$([System.DateTime]::Now.Year) mRemoteNG Dev Team, 2010-2013 Riley McArdle, 2007-2009 Felix Deimel</Copyright>
@@ -26,9 +28,9 @@
     <PackageIcon>Header_dark.png</PackageIcon>
     <ProjectTypeGuids>{60dc8134-eba5-43b8-bcc9-bb4bc16c2548};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <UseWPF>True</UseWPF>
-    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
     <SignAssembly>False</SignAssembly>
-    <Title>Multi-Remote Next Generation Connection Manager</Title>
+    <Title>$(ResolvedBrandingDisplayName)</Title>
     <RepositoryUrl>https://github.com/mRemoteNG/mRemoteNG.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <StartupObject>mRemoteNG.App.ProgramRoot</StartupObject>
@@ -694,4 +696,5 @@
   </Target>
   <Import Project="$(MSBuildExtensionsPath)\Microsoft\VisualStudio\v18.0\TextTemplating\Microsoft.TextTemplating.targets"
           Condition="Exists('$(MSBuildExtensionsPath)\Microsoft\VisualStudio\v18.0\TextTemplating\Microsoft.TextTemplating.targets')" />
+  <Import Project="..\build\Branding.targets" />
 </Project>

@@ -22,6 +22,38 @@ namespace mRemoteNG.Properties {
                 return defaultInstance;
             }
         }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string ApplicationDisplayName {
+            get { return ((string)(this["ApplicationDisplayName"])); }
+            set { this["ApplicationDisplayName"] = value; }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string ApplicationIconPath {
+            get { return ((string)(this["ApplicationIconPath"])); }
+            set { this["ApplicationIconPath"] = value; }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool ShowInStartMenu {
+            get { return ((bool)(this["ShowInStartMenu"])); }
+            set { this["ShowInStartMenu"] = value; }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool HasCustomStartMenuPreference {
+            get { return ((bool)(this["HasCustomStartMenuPreference"])); }
+            set { this["HasCustomStartMenuPreference"] = value; }
+        }
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]

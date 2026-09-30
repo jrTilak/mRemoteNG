@@ -16,6 +16,7 @@ namespace mRemoteNG.UI.Forms.OptionsPages
         public AppearancePage()
         {
             InitializeComponent();
+            InitializeBrandingControls();
             ApplyTheme();
             PageIcon = Resources.ImageConverter.GetImageAsIcon(Properties.Resources.Panel_16x);
         }
@@ -64,10 +65,14 @@ namespace mRemoteNG.UI.Forms.OptionsPages
 
             chkShowDescriptionTooltipsInTree.Checked = Properties.OptionsAppearancePage.Default.ShowDescriptionTooltipsInTree;
             chkShowFullConnectionsFilePathInTitle.Checked = Properties.OptionsAppearancePage.Default.ShowCompleteConsPathInTitle;
-            chkShowSystemTrayIcon.Checked = Properties.OptionsAppearancePage.Default.ShowSystemTrayIcon;
-            chkMinimizeToSystemTray.Checked = Properties.OptionsAppearancePage.Default.MinimizeToTray;
-            chkCloseToSystemTray.Checked = Properties.OptionsAppearancePage.Default.CloseToTray;
+            chkShowSystemTrayIcon.Checked = false;
+            chkShowSystemTrayIcon.Enabled = false;
+            chkMinimizeToSystemTray.Checked = false;
+            chkMinimizeToSystemTray.Enabled = false;
+            chkCloseToSystemTray.Checked = false;
+            chkCloseToSystemTray.Enabled = false;
             chkEnableConnectionTreeAnimations.Checked = Properties.OptionsAppearancePage.Default.EnableConnectionTreeAnimations;
+            LoadBrandingPreferences();
         }
 
         public override void SaveSettings()
@@ -86,25 +91,10 @@ namespace mRemoteNG.UI.Forms.OptionsPages
             Properties.OptionsAppearancePage.Default.ShowCompleteConsPathInTitle = chkShowFullConnectionsFilePathInTitle.Checked;
             FrmMain.Default.ShowFullPathInTitle = chkShowFullConnectionsFilePathInTitle.Checked;
 
-            Properties.OptionsAppearancePage.Default.ShowSystemTrayIcon = chkShowSystemTrayIcon.Checked;
-            if (Properties.OptionsAppearancePage.Default.ShowSystemTrayIcon)
-            {
-                if (Runtime.NotificationAreaIcon == null)
-                {
-                    Runtime.NotificationAreaIcon = new NotificationAreaIcon();
-                }
-            }
-            else
-            {
-                if (Runtime.NotificationAreaIcon != null)
-                {
-                    Runtime.NotificationAreaIcon.Dispose();
-                    Runtime.NotificationAreaIcon = null;
-                }
-            }
-
-            Properties.OptionsAppearancePage.Default.MinimizeToTray = chkMinimizeToSystemTray.Checked;
-            Properties.OptionsAppearancePage.Default.CloseToTray = chkCloseToSystemTray.Checked;
+            // Protected tool windows always close normally and do not create tray icons.
+            Properties.OptionsAppearancePage.Default.ShowSystemTrayIcon = false;
+            Properties.OptionsAppearancePage.Default.MinimizeToTray = false;
+            Properties.OptionsAppearancePage.Default.CloseToTray = false;
             Properties.OptionsAppearancePage.Default.EnableConnectionTreeAnimations = chkEnableConnectionTreeAnimations.Checked;
         }
 

@@ -1,8 +1,11 @@
 ﻿using mRemoteNG.App;
 using mRemoteNG.Connection.Protocol;
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
+using mRemoteNG.Connection.Protocol.RDP;
+using mRemoteNG.UI.Forms;
 using mRemoteNG.UI.Tabs;
 using WeifenLuo.WinFormsUI.Docking;
 using System.Runtime.Versioning;
@@ -12,6 +15,7 @@ namespace mRemoteNG.Connection
     [SupportedOSPlatform("windows")]
     public sealed partial class InterfaceControl
     {
+        private readonly List<Control> _captureHostAncestors = new();
         public ProtocolBase Protocol { get; set; }
         public ConnectionInfo Info { get; set; }
         // in case the connection is through a SSH tunnel the Info is a copy of original info with hostname and port number overwritten with localhost and local tunnel port
@@ -32,6 +36,7 @@ namespace mRemoteNG.Connection
                 Size = Parent.Size;
                 Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top;
                 InitializeComponent();
+                Disposed += (_, _) => DetachCaptureHostAncestors();
                 
                 // Enable custom painting for border
                 this.Paint += InterfaceControl_Paint;
@@ -44,6 +49,59 @@ namespace mRemoteNG.Connection
                 Runtime.MessageCollector.AddMessage(Messages.MessageClass.ErrorMsg,
                                                     "Couldn\'t create new InterfaceControl" + Environment.NewLine +
                                                     ex.Message);
+            }
+        }
+
+        protected override void OnParentChanged(EventArgs e)
+        {
+            base.OnParentChanged(e);
+            CaptureHostParentChanged(this, e);
+        }
+
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+            RegisterCaptureHost();
+        }
+
+        protected override void OnVisibleChanged(EventArgs e)
+        {
+            base.OnVisibleChanged(e);
+            if (Visible) RegisterCaptureHost();
+        }
+
+        private void CaptureHostParentChanged(object sender, EventArgs e)
+        {
+            DetachCaptureHostAncestors();
+            if (IsDisposed || Disposing || Protocol is not RdpProtocol) return;
+
+            // Docking can reparent any ancestor without reparenting this panel.
+            // Track the chain so a moved tab/panel registers its actual outer HWND.
+            for (Control ancestor = Parent; ancestor != null; ancestor = ancestor.Parent)
+            {
+                _captureHostAncestors.Add(ancestor);
+                ancestor.ParentChanged += CaptureHostParentChanged;
+            }
+            RegisterCaptureHost();
+        }
+
+        private void DetachCaptureHostAncestors()
+        {
+            foreach (var ancestor in _captureHostAncestors)
+                ancestor.ParentChanged -= CaptureHostParentChanged;
+            _captureHostAncestors.Clear();
+        }
+
+        private void RegisterCaptureHost()
+        {
+            if (IsDisposed || Disposing || Protocol is not RdpProtocol) return;
+            // FindForm() may be a child DockContent; affinity must target the
+            // process-owned top-level form, never the ActiveX or a docking child.
+            if (TopLevelControl is Form { TopLevel: true } host)
+            {
+                var main = FrmMain.Default;
+                if (!main.IsClosing && !main.IsDisposed && !main.Disposing)
+                    main.CaptureProtection?.Register(host, null);
             }
         }
 

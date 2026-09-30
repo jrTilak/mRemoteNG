@@ -5,18 +5,24 @@
     <StandardDirectory Id="DesktopFolder">
       <Component Id="C.DesktopShortcut" Guid="F78E5A16-A2F7-4BD9-9250-CBF3016CCCDA">
         <Shortcut Id="DesktopShortcut" Name="$(var.ProductName)" Target="[INSTALLDIR][MAINEXE]" WorkingDirectory="INSTALLDIR" Icon="AppIcon.ico" />
-        <RegistryValue Root="HKCU" Key="Software\$(var.ProductName)" Name="DesktopShortcut" Type="integer" Value="1" KeyPath="yes" />
+        <RegistryValue Root="HKCU" Key="Software\mRemoteNG" Name="DesktopShortcut" Type="integer" Value="1" KeyPath="yes" />
       </Component>
     </StandardDirectory>
     
     <DirectoryRef Id="ApplicationProgramsFolder">
-      <Component Id="C.ApplicationStartMenuShortcut" Guid="193B9E14-F40E-44F1-8514-BED253BCBF75">
+      <!-- New component identity because its location changed from common
+           Programs to the installing user's Programs folder. -->
+      <Component Id="C.ApplicationStartMenuShortcut" Guid="37B88508-2D3B-40FC-B854-4F9867AEE81B">
         <Shortcut Id="ApplicationStartMenuShortcut" Name="$(var.ProductName)" Target="[INSTALLDIR][MAINEXE]" WorkingDirectory="INSTALLDIR" Icon="AppIcon.ico" />
-        <Shortcut Id="CreditsShortcut" Name="Credits" Target="[INSTALLDIR]Credits.txt" WorkingDirectory="INSTALLDIR" />
-        <Shortcut Id="LicenseShortcut" Name="License" Target="[INSTALLDIR]License.txt" WorkingDirectory="INSTALLDIR" />
-        <Shortcut Id="ReadmeShortcut" Name="Readme" Target="[INSTALLDIR]Readme.txt" WorkingDirectory="INSTALLDIR" />
         <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall" />
-        <RegistryValue Root="HKCU" Key="Software\$(var.ProductName)" Name="ApplicationStartMenuShortcut" Type="integer" Value="1" KeyPath="yes" />
+        <!-- ICE64 requires cleanup entries for every authored profile directory.
+             RemoveFolder removes empty directories only; these entries never
+             recursively remove files or another application's Start menu entries. -->
+        <RemoveFolder Id="RemoveUserProgramsFolder" Directory="UserProgramsFolder" On="uninstall" />
+        <RemoveFolder Id="RemoveUserStartMenuFolder" Directory="UserStartMenuFolder" On="uninstall" />
+        <RemoveFolder Id="RemoveStartMenuWindowsFolder" Directory="StartMenuWindowsFolder" On="uninstall" />
+        <RemoveFolder Id="RemoveStartMenuMicrosoftFolder" Directory="StartMenuMicrosoftFolder" On="uninstall" />
+        <RegistryValue Root="HKCU" Key="Software\mRemoteNG" Name="UserApplicationStartMenuShortcut" Type="integer" Value="1" KeyPath="yes" />
       </Component>
     </DirectoryRef>
     

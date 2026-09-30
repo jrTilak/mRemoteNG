@@ -174,7 +174,7 @@ namespace mRemoteNG.UI.Menu
             _mMenViewFullscreen.Name = "mMenViewFullscreen";
             _mMenViewFullscreen.ShortcutKeys = Keys.F11;
             _mMenViewFullscreen.Size = new System.Drawing.Size(228, 22);
-            _mMenViewFullscreen.Text = Language.Fullscreen;
+            _mMenViewFullscreen.Text = "Maximize/restore window";
             _mMenViewFullscreen.Checked = Properties.App.Default.MainFormKiosk;
             _mMenViewFullscreen.Click += mMenViewFullscreen_Click;
         }
@@ -191,7 +191,7 @@ namespace mRemoteNG.UI.Menu
             _mMenViewQuickConnectToolbar.Text = Language.QuickConnectToolbar;
             _mMenViewExtAppsToolbar.Text = Language.ExternalToolsToolbar;
             _mMenViewMultiSshToolbar.Text = Language.MultiSshToolbar;
-            _mMenViewFullscreen.Text = Language.Fullscreen;
+            _mMenViewFullscreen.Text = "Maximize/restore window";
         }
 
         #region View

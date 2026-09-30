@@ -147,26 +147,10 @@ namespace mRemoteNG.UI.Window
         /// </summary>
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
-            if (_optionsForm != null && !_optionsForm.IsDisposed && _optionsForm.HasUnsavedChanges())
+            if (!e.Cancel && _optionsForm is { IsDisposed: false } && !_optionsForm.ConfirmClose(this))
             {
-                DialogResult result = MessageBox.Show(
-                    Language.SaveOptionsBeforeClosing,
-                    Language.Options,
-                    MessageBoxButtons.YesNoCancel,
-                    MessageBoxIcon.Question);
-
-                switch (result)
-                {
-                    case DialogResult.Yes:
-                        _optionsForm.SaveAllOptions();
-                        break;
-                    case DialogResult.No:
-                        _optionsForm.DiscardChanges();
-                        break;
-                    case DialogResult.Cancel:
-                        e.Cancel = true;
-                        return;
-                }
+                e.Cancel = true;
+                return;
             }
 
             base.OnFormClosing(e);

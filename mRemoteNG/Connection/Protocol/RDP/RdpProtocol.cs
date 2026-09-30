@@ -41,6 +41,7 @@ namespace mRemoteNG.Connection.Protocol.RDP
         protected bool loginComplete;
         private bool _redirectKeys;
         private bool _alertOnIdleDisconnect;
+        private volatile bool _closing;
         protected uint DesktopScaleFactor => (uint)(_displayProperties.ResolutionScalingFactor.Width * 100);
         protected readonly uint DeviceScaleFactor = 100;
         protected readonly uint Orientation = 0;
@@ -79,10 +80,19 @@ namespace mRemoteNG.Connection.Protocol.RDP
             }
         }
 
+        // Fullscreen commands maximize the protected host, never the ActiveX control.
+        // TopLevelControl is important: FindForm() can return a child DockContent.
+        protected Form RdpHostForm => InterfaceControl?.TopLevelControl as Form ?? _frmMain;
+
         public virtual bool Fullscreen
         {
-            get => _rdpClient.FullScreen;
-            protected set => _rdpClient.FullScreen = value;
+            get => RdpHostForm?.WindowState == FormWindowState.Maximized;
+            protected set
+            {
+                var host = RdpHostForm;
+                if (host == null || host.IsDisposed) return;
+                host.WindowState = value ? FormWindowState.Maximized : FormWindowState.Normal;
+            }
         }
 
         private bool RedirectKeys
@@ -233,6 +243,15 @@ namespace mRemoteNG.Connection.Protocol.RDP
 
         public override void Close()
         {
+            if (Control is { IsDisposed: false, IsHandleCreated: true } && Control.InvokeRequired)
+            {
+                Control.Invoke(new Action(Close));
+                return;
+            }
+            if (_closing) return;
+            _closing = true;
+            tmrReconnect.Stop();
+
             try
             {
                 if (_rdpClient != null)
@@ -244,6 +263,8 @@ namespace mRemoteNG.Connection.Protocol.RDP
                     _rdpClient.OnDisconnected -= RDPEvent_OnDisconnected;
                     _rdpClient.OnIdleTimeoutNotification -= RDPEvent_OnIdleTimeoutNotification;
                     _rdpClient.OnLeaveFullScreenMode -= RDPEvent_OnLeaveFullscreenMode;
+                    _rdpClient.OnRequestGoFullScreen -= RDPEvent_OnRequestGoFullscreen;
+                    _rdpClient.OnRequestLeaveFullScreen -= RDPEvent_OnRequestLeaveFullscreen;
                 }
 
                 if (Control != null)
@@ -256,7 +277,31 @@ namespace mRemoteNG.Connection.Protocol.RDP
                 Runtime.MessageCollector.AddExceptionStackTrace("RdpProtocol: error unsubscribing event handlers", ex);
             }
 
-            base.Close();
+            try
+            {
+                // Unsubscribe first so a deliberate disconnect cannot start reconnect
+                // UI or recursively close the session while the application exits.
+                if (_rdpClient != null && Control is { IsDisposed: false } && _rdpClient.Connected != 0)
+                    _rdpClient.Disconnect();
+            }
+            catch (Exception ex)
+            {
+                Runtime.MessageCollector.AddExceptionStackTrace(Language.RdpDisconnectFailed, ex);
+            }
+            finally
+            {
+                // Shutdown must release the ActiveX HWND before the UI loop exits;
+                // ordinary session closes retain ProtocolBase's existing cleanup path.
+                try
+                {
+                    if (_frmMain.IsClosing && Control is { IsDisposed: false })
+                        Control.Dispose();
+                }
+                finally
+                {
+                    base.Close();
+                }
+            }
         }
 
         public void ToggleFullscreen()
@@ -354,6 +399,7 @@ namespace mRemoteNG.Connection.Protocol.RDP
             _rdpClient.Server = connectionInfo.Hostname;
 
             SetCredentials();
+            ConfigureProtectedWindowMode();
             SetResolution();
             _rdpClient.FullScreenTitle = connectionInfo.Name;
 
@@ -722,6 +768,33 @@ namespace mRemoteNG.Connection.Protocol.RDP
                 || (!connectionInfo.UseRestrictedAdmin && !connectionInfo.UseRCG);
         }
 
+        private void ConfigureProtectedWindowMode()
+        {
+            // Microsoft documents that this diverts Ctrl+Alt+Break to request events;
+            // the control no longer creates its own, unprotected fullscreen HWND.
+            // https://learn.microsoft.com/windows/win32/termserv/imstscadvancedsettings-containerhandledfullscreen
+            _rdpClient.AdvancedSettings.ContainerHandledFullScreen = 1;
+            _rdpClient.FullScreen = false;
+            if (_rdpClient.AdvancedSettings.ContainerHandledFullScreen == 0 || _rdpClient.FullScreen)
+                throw new InvalidOperationException("The RDP control could not disable native fullscreen.");
+
+            // Multi-monitor ActiveX presentation is not part of the protected window mode.
+            if (((AxHost)Control).GetOcx() is IMsRdpClientNonScriptable5 multiMonitor)
+            {
+                multiMonitor.UseMultimon = false;
+                if (multiMonitor.UseMultimon)
+                    throw new InvalidOperationException("The RDP control could not disable native multi-monitor mode.");
+            }
+        }
+
+        private void SetMaximizedResolution()
+        {
+            Fullscreen = true;
+            var area = InterfaceControl.DisplayRectangle;
+            _rdpClient.DesktopWidth = Math.Max(1, area.Width);
+            _rdpClient.DesktopHeight = Math.Max(1, area.Height);
+        }
+
         private void SetResolution()
         {
             try
@@ -731,9 +804,7 @@ namespace mRemoteNG.Connection.Protocol.RDP
 
                 if (Force.HasFlag(ConnectionInfo.Force.Fullscreen))
                 {
-                    _rdpClient.FullScreen = true;
-                    _rdpClient.DesktopWidth = Screen.FromControl(_frmMain).Bounds.Width;
-                    _rdpClient.DesktopHeight = Screen.FromControl(_frmMain).Bounds.Height;
+                    SetMaximizedResolution();
 
                     return;
                 }
@@ -774,9 +845,7 @@ namespace mRemoteNG.Connection.Protocol.RDP
                         Control.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
                         break;
                     case RDPResolutions.Fullscreen:
-                        _rdpClient.FullScreen = true;
-                        _rdpClient.DesktopWidth = Screen.FromControl(_frmMain).Bounds.Width;
-                        _rdpClient.DesktopHeight = Screen.FromControl(_frmMain).Bounds.Height;
+                        SetMaximizedResolution();
                         break;
                 }
             }
@@ -937,6 +1006,8 @@ namespace mRemoteNG.Connection.Protocol.RDP
                 _rdpClient.OnDisconnected += RDPEvent_OnDisconnected;
                 _rdpClient.OnIdleTimeoutNotification += RDPEvent_OnIdleTimeoutNotification;
                 _rdpClient.OnLeaveFullScreenMode += RDPEvent_OnLeaveFullscreenMode;
+                _rdpClient.OnRequestGoFullScreen += RDPEvent_OnRequestGoFullscreen;
+                _rdpClient.OnRequestLeaveFullScreen += RDPEvent_OnRequestLeaveFullscreen;
             }
             catch (Exception ex)
             {
@@ -964,6 +1035,7 @@ namespace mRemoteNG.Connection.Protocol.RDP
 
         private void RDPEvent_OnDisconnected(int discReason)
         {
+            if (_closing) return;
             const int UI_ERR_NORMAL_DISCONNECT = 0xB08;
             if (discReason != UI_ERR_NORMAL_DISCONNECT)
             {
@@ -1000,6 +1072,18 @@ namespace mRemoteNG.Connection.Protocol.RDP
         private void RDPEvent_OnLoginComplete()
         {
             loginComplete = true;
+        }
+
+        private void RDPEvent_OnRequestGoFullscreen()
+        {
+            // FullScreen stays false in COM, so subsequent shortcut requests also
+            // arrive as "go fullscreen". Toggle the container's actual window state.
+            ToggleFullscreen();
+        }
+
+        private void RDPEvent_OnRequestLeaveFullscreen()
+        {
+            Fullscreen = false;
         }
 
         private void RDPEvent_OnLeaveFullscreenMode()
@@ -1044,17 +1128,23 @@ namespace mRemoteNG.Connection.Protocol.RDP
 
         private void tmrReconnect_Elapsed(object sender, ElapsedEventArgs e)
         {
+            if (_closing) return;
             try
             {
                 bool srvReady = PortScanner.IsPortOpen(connectionInfo.Hostname, Convert.ToString(connectionInfo.Port));
+                if (_closing || Control is not { IsDisposed: false, IsHandleCreated: true }) return;
 
-                ReconnectGroup.ServerReady = srvReady;
-
-                if (!ReconnectGroup.ReconnectWhenReady || !srvReady) return;
-                tmrReconnect.Enabled = false;
-                ReconnectGroup.DisposeReconnectGroup();
-                //SetProps()
-                _rdpClient.Connect();
+                // A pending reconnect tick must not reconnect after the UI closes
+                // the session. Check again on its owning thread before touching COM.
+                Control.Invoke(new Action(() =>
+                {
+                    if (_closing || Control.IsDisposed || ReconnectGroup == null || ReconnectGroup.IsDisposed) return;
+                    ReconnectGroup.ServerReady = srvReady;
+                    if (!ReconnectGroup.ReconnectWhenReady || !srvReady) return;
+                    tmrReconnect.Stop();
+                    ReconnectGroup.DisposeReconnectGroup();
+                    _rdpClient.Connect();
+                }));
             }
             catch (Exception ex)
             {
