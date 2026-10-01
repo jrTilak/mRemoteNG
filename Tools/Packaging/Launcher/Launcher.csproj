@@ -16,8 +16,11 @@
     <DebugSymbols Condition="'$(Configuration)' == 'Release'">false</DebugSymbols>
     <LauncherIcon Condition="'$(LauncherIcon)' == ''">$(ResolvedBrandingIconPath)</LauncherIcon>
     <ApplicationIcon>$(LauncherIcon)</ApplicationIcon>
-    <Title>$(ResolvedBrandingDisplayName) portable launcher</Title>
-    <Description>Extracts and starts the bundled $(ResolvedBrandingDisplayName) application.</Description>
+    <Title></Title>
+    <Description></Description>
+    <GenerateAssemblyTitleAttribute>false</GenerateAssemblyTitleAttribute>
+    <GenerateAssemblyDescriptionAttribute>false</GenerateAssemblyDescriptionAttribute>
+    <GenerateBrandingAssemblyInfo>true</GenerateBrandingAssemblyInfo>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="Tests\**\*.cs;bin\**\*.cs;obj\**\*.cs" />
@@ -27,4 +30,6 @@
     <Error Condition="'$(PayloadZip)' == '' or !Exists('$(PayloadZip)')" Text="Supply PayloadZip with the absolute path of the complete application ZIP." />
     <Error Condition="!Exists('$(LauncherIcon)')" Text="LauncherIcon does not exist: $(LauncherIcon)" />
   </Target>
+  <Import Project="..\..\..\build\Branding.targets" />
+  <Import Project="..\..\..\build\BrandedAppHost.targets" />
 </Project>

@@ -1,0 +1,73 @@
+<Project>
+  <!-- Keep the managed assembly, resource and settings identities unchanged.
+       Only the Windows native launcher gets the user-visible executable name. -->
+  <PropertyGroup>
+    <BrandedAppHostFileName>Capture2Text.exe</BrandedAppHostFileName>
+  </PropertyGroup>
+
+  <Target Name="BrandNativeAppHost" AfterTargets="_ComputeNETCoreBuildOutputFiles"
+          Condition="'$(UseAppHost)' == 'true' and '$(_NativeExecutableExtension)' == '.exe'">
+    <ItemGroup>
+      <None Update="$(AppHostIntermediatePath)">
+        <Link>$(BrandedAppHostFileName)</Link>
+        <TargetPath>$(BrandedAppHostFileName)</TargetPath>
+      </None>
+    </ItemGroup>
+  </Target>
+
+  <Target Name="BrandPublishedAppHost" AfterTargets="GetCopyToPublishDirectoryItems"
+          Condition="'$(UseAppHost)' == 'true' and '$(_NativeExecutableExtension)' == '.exe'">
+    <PropertyGroup>
+      <_PublishedAppHostFileName>$(BrandedAppHostFileName)</_PublishedAppHostFileName>
+      <!-- Bundling identifies deps/runtimeconfig by the managed assembly name. -->
+      <_PublishedAppHostFileName Condition="'$(PublishSingleFile)' == 'true'">$(AssemblyName)$(_NativeExecutableExtension)</_PublishedAppHostFileName>
+    </PropertyGroup>
+    <ItemGroup>
+      <!-- The SDK can replace the build host with a publish-only or bundle host. -->
+      <_SourceItemsToCopyToPublishDirectoryAlways Update="$(AppHostIntermediatePath);$(AppHostForPublishIntermediatePath);$(SingleFileHostIntermediatePath)">
+        <TargetPath>$(_PublishedAppHostFileName)</TargetPath>
+      </_SourceItemsToCopyToPublishDirectoryAlways>
+      <_SourceItemsToCopyToPublishDirectory Update="$(AppHostIntermediatePath);$(AppHostForPublishIntermediatePath);$(SingleFileHostIntermediatePath)">
+        <TargetPath>$(_PublishedAppHostFileName)</TargetPath>
+      </_SourceItemsToCopyToPublishDirectory>
+      <_SourceItemsToCopyToPublishDirectoryIfDifferent Update="$(AppHostIntermediatePath);$(AppHostForPublishIntermediatePath);$(SingleFileHostIntermediatePath)">
+        <TargetPath>$(_PublishedAppHostFileName)</TargetPath>
+      </_SourceItemsToCopyToPublishDirectoryIfDifferent>
+      <AllPublishItemsFullPathWithTargetPath Update="$(AppHostIntermediatePath);$(AppHostForPublishIntermediatePath);$(SingleFileHostIntermediatePath)">
+        <TargetPath>$(_PublishedAppHostFileName)</TargetPath>
+      </AllPublishItemsFullPathWithTargetPath>
+    </ItemGroup>
+  </Target>
+
+  <Target Name="BrandSingleFileBundle" AfterTargets="GenerateSingleFileBundle"
+          Condition="'$(PublishSingleFile)' == 'true' and '$(_NativeExecutableExtension)' == '.exe'">
+    <!-- Rename the completed bundle, preserving its managed assembly identity
+         and the SDK's embedded runtime configuration/dependency discovery. -->
+    <Move SourceFiles="$(PublishedSingleFilePath)" DestinationFiles="$(PublishDir)$(BrandedAppHostFileName)"
+          Condition="'$(PublishedSingleFileName)' != '$(BrandedAppHostFileName)'" />
+    <PropertyGroup>
+      <PublishedSingleFileName>$(BrandedAppHostFileName)</PublishedSingleFileName>
+      <PublishedSingleFilePath>$(PublishDir)$(PublishedSingleFileName)</PublishedSingleFilePath>
+    </PropertyGroup>
+    <ItemGroup>
+      <FileWrites Include="$(PublishedSingleFilePath)" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="TrackBrandedPublishOutput" AfterTargets="_GetCurrentAndPriorPublishFileWrites"
+          Condition="'$(UseAppHost)' == 'true' and '$(_NativeExecutableExtension)' == '.exe'">
+    <ItemGroup>
+      <!-- Let SDK cleanup remove an old name only when a prior publish recorded
+           that file as its own output. Never delete untracked user files. -->
+      <_CurrentPublishFileWrites Remove="$(_NormalizedPublishDir)$(AssemblyName)$(_NativeExecutableExtension)" />
+      <_CurrentPublishFileWrites Include="$(_NormalizedPublishDir)$(BrandedAppHostFileName)" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="UseBrandedRunCommand" AfterTargets="ComputeRunArguments"
+          Condition="'$(UseAppHost)' == 'true' and '$(_NativeExecutableExtension)' == '.exe' and '$(RunCommand)' == '$(TargetDir)$(AssemblyName)$(_NativeExecutableExtension)'">
+    <PropertyGroup>
+      <RunCommand>$(TargetDir)$(BrandedAppHostFileName)</RunCommand>
+    </PropertyGroup>
+  </Target>
+</Project>

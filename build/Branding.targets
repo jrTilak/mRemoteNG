@@ -23,10 +23,12 @@
     </PropertyGroup>
     <ItemGroup>
       <BrandingAssemblyAttribute Include="System.Reflection.AssemblyTitleAttribute">
-        <_Parameter1>$(ResolvedBrandingDisplayName)</_Parameter1>
+        <_Parameter1>""</_Parameter1>
+        <_Parameter1_IsLiteral>true</_Parameter1_IsLiteral>
       </BrandingAssemblyAttribute>
       <BrandingAssemblyAttribute Include="System.Reflection.AssemblyDescriptionAttribute">
-        <_Parameter1>$(ResolvedBrandingDisplayName)</_Parameter1>
+        <_Parameter1>""</_Parameter1>
+        <_Parameter1_IsLiteral>true</_Parameter1_IsLiteral>
       </BrandingAssemblyAttribute>
       <BrandingAssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
         <_Parameter1>BrandingDisplayName</_Parameter1>

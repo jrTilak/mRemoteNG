@@ -6,17 +6,17 @@ var tests = new List<(string Name, Action<string> Run)>
 {
     ("Extracts complete application layout", root =>
     {
-        using var zip = Zip(("mRemoteNG.exe", "executable", null), ("Assemblies/dependency.dll", "library", null),
+        using var zip = Zip(("Capture2Text.exe", "executable", null), ("Assemblies/dependency.dll", "library", null),
             ("Themes/", "", null), ("Themes/default.theme", "theme", null));
         string app = PayloadExtractor.GetOrExtract(zip, root);
-        Equal("executable", File.ReadAllText(Path.Combine(app, "mRemoteNG.exe")));
+        Equal("executable", File.ReadAllText(Path.Combine(app, "Capture2Text.exe")));
         Equal("library", File.ReadAllText(Path.Combine(app, "Assemblies", "dependency.dll")));
         Equal("theme", File.ReadAllText(Path.Combine(app, "Themes", "default.theme")));
         True(File.Exists(Path.Combine(Path.GetDirectoryName(app)!, ".payload.sha256")));
     }),
     ("Cached package preserves portable settings", root =>
     {
-        using var zip = Zip(("mRemoteNG.exe", "executable", null));
+        using var zip = Zip(("Capture2Text.exe", "executable", null));
         string app = PayloadExtractor.GetOrExtract(zip, root);
         File.WriteAllText(Path.Combine(app, "confCons.xml"), "user connections");
         Equal(app, PayloadExtractor.GetOrExtract(zip, root));
@@ -24,16 +24,16 @@ var tests = new List<(string Name, Action<string> Run)>
     }),
     ("Changed payload gets a separate version folder", root =>
     {
-        using var first = Zip(("mRemoteNG.exe", "first build", null));
-        using var second = Zip(("mRemoteNG.exe", "second build", null));
+        using var first = Zip(("Capture2Text.exe", "first build", null));
+        using var second = Zip(("Capture2Text.exe", "second build", null));
         string firstApp = PayloadExtractor.GetOrExtract(first, root);
         string secondApp = PayloadExtractor.GetOrExtract(second, root);
         True(firstApp != secondApp);
-        Equal("first build", File.ReadAllText(Path.Combine(firstApp, "mRemoteNG.exe")));
+        Equal("first build", File.ReadAllText(Path.Combine(firstApp, "Capture2Text.exe")));
     }),
     ("Missing marker does not overwrite existing settings", root =>
     {
-        using var zip = Zip(("mRemoteNG.exe", "executable", null));
+        using var zip = Zip(("Capture2Text.exe", "executable", null));
         string app = PayloadExtractor.GetOrExtract(zip, root);
         File.WriteAllText(Path.Combine(app, "settings.xml"), "preserve me");
         File.Delete(Path.Combine(Path.GetDirectoryName(app)!, ".payload.sha256"));
@@ -42,21 +42,21 @@ var tests = new List<(string Name, Action<string> Run)>
     }),
     ("Wrong marker is rejected", root =>
     {
-        using var zip = Zip(("mRemoteNG.exe", "executable", null));
+        using var zip = Zip(("Capture2Text.exe", "executable", null));
         string app = PayloadExtractor.GetOrExtract(zip, root);
         File.WriteAllText(Path.Combine(Path.GetDirectoryName(app)!, ".payload.sha256"), "wrong payload");
         Throws<InvalidDataException>(() => PayloadExtractor.GetOrExtract(zip, root));
     }),
     ("Missing cached executable is rejected", root =>
     {
-        using var zip = Zip(("mRemoteNG.exe", "executable", null));
+        using var zip = Zip(("Capture2Text.exe", "executable", null));
         string app = PayloadExtractor.GetOrExtract(zip, root);
-        File.Delete(Path.Combine(app, "mRemoteNG.exe"));
+        File.Delete(Path.Combine(app, "Capture2Text.exe"));
         Throws<InvalidDataException>(() => PayloadExtractor.GetOrExtract(zip, root));
     }),
     ("Missing root executable fails and cleans staging", root =>
     {
-        using var zip = Zip(("nested/mRemoteNG.exe", "wrong root", null));
+        using var zip = Zip(("nested/Capture2Text.exe", "wrong root", null));
         Throws<InvalidDataException>(() => PayloadExtractor.GetOrExtract(zip, root));
         Equal(0, Directory.EnumerateFileSystemEntries(root).Count());
     }),
@@ -68,24 +68,24 @@ var tests = new List<(string Name, Action<string> Run)>
     }),
     ("Windows case-insensitive duplicate files are rejected", root =>
     {
-        using var zip = Zip(("mRemoteNG.exe", "one", null), ("MREMOTENG.EXE", "two", null));
+        using var zip = Zip(("Capture2Text.exe", "one", null), ("CAPTURE2TEXT.EXE", "two", null));
         Throws<InvalidDataException>(() => PayloadExtractor.GetOrExtract(zip, root));
         Equal(0, Directory.EnumerateFileSystemEntries(root).Count());
     }),
     ("ZIP symbolic links are rejected", root =>
     {
-        using var zip = Zip(("mRemoteNG.exe", "executable", null), ("link", "../outside", unchecked((int)0xa1ff0000)));
+        using var zip = Zip(("Capture2Text.exe", "executable", null), ("link", "../outside", unchecked((int)0xa1ff0000)));
         Throws<InvalidDataException>(() => PayloadExtractor.GetOrExtract(zip, root));
         Equal(0, Directory.EnumerateFileSystemEntries(root).Count());
     }),
     ("ZIP reparse metadata is rejected", root =>
     {
-        using var zip = Zip(("mRemoteNG.exe", "executable", null), ("link", "outside", (int)FileAttributes.ReparsePoint));
+        using var zip = Zip(("Capture2Text.exe", "executable", null), ("link", "outside", (int)FileAttributes.ReparsePoint));
         Throws<InvalidDataException>(() => PayloadExtractor.GetOrExtract(zip, root));
     }),
     ("Concurrent extraction publishes only one complete tree", root =>
     {
-        using var zip = Zip(("mRemoteNG.exe", "executable", null), ("content.bin", new string('x', 100_000), null));
+        using var zip = Zip(("Capture2Text.exe", "executable", null), ("content.bin", new string('x', 100_000), null));
         byte[] bytes = zip.ToArray();
         string[] paths = new string[4];
         Parallel.For(0, paths.Length, index =>
@@ -110,7 +110,7 @@ foreach (string invalidPath in new[]
     string path = invalidPath;
     tests.Add(("Rejects unsafe ZIP path " + path, root =>
     {
-        using var zip = Zip(("mRemoteNG.exe", "executable", null), (path, "unsafe", null));
+        using var zip = Zip(("Capture2Text.exe", "executable", null), (path, "unsafe", null));
         Throws<InvalidDataException>(() => PayloadExtractor.GetOrExtract(zip, root));
         Equal(0, Directory.EnumerateFileSystemEntries(root).Count());
     }));
@@ -124,7 +124,7 @@ if (!OperatingSystem.IsWindows())
         Directory.CreateDirectory(actual);
         string linked = Path.Combine(root, "linked");
         Directory.CreateSymbolicLink(linked, actual);
-        using var zip = Zip(("mRemoteNG.exe", "executable", null));
+        using var zip = Zip(("Capture2Text.exe", "executable", null));
         Throws<IOException>(() => PayloadExtractor.GetOrExtract(zip, Path.Combine(linked, "cache")));
         Equal(0, Directory.EnumerateFileSystemEntries(actual).Count());
     }));

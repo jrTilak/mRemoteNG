@@ -6,7 +6,7 @@ namespace mRemoteNG.Packaging;
 
 internal static class PayloadExtractor
 {
-    private const string ExecutableName = "mRemoteNG.exe";
+    private const string ExecutableName = "Capture2Text.exe";
     private const string CompletionMarker = ".payload.sha256";
 
     internal static string GetOrExtract(Stream payloadZip, string cacheRoot)
@@ -52,7 +52,7 @@ internal static class PayloadExtractor
                 EnsureNoReparsePoints(stagingApp);
                 Extract(payloadZip, stagingApp);
                 if (!File.Exists(Path.Combine(stagingApp, ExecutableName)))
-                    throw new InvalidDataException("The ZIP must contain mRemoteNG.exe at its root.");
+                    throw new InvalidDataException("The ZIP must contain Capture2Text.exe at its root.");
 
                 File.WriteAllText(Path.Combine(stagingDirectory, CompletionMarker), payloadHash, Encoding.ASCII);
                 try

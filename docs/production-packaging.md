@@ -1,6 +1,6 @@
 # Production build and one-EXE packaging
 
-This guide builds an optimized **Release Self-Contained** Windows client and packages it as **`mRemoteNG-Portable.exe`**. The recipient can double-click that file or launch it from a terminal; it extracts the application's supporting files into a persistent user folder and opens the client. There is no separate extraction step for the recipient.
+This guide builds an optimized **Release Self-Contained** Windows client and packages it as **`Capture2Text.exe`**. The recipient can double-click that file or launch it from a terminal; it extracts the application's supporting files into a persistent user folder and opens the client. There is no separate extraction step for the recipient.
 
 The EXE is one file to transfer, but the application still uses files on disk when running. The launcher preserves the existing RDP ActiveX integration and folder layout. It does not change the RDP engine or capture-protection policy.
 
@@ -98,7 +98,7 @@ Open **Developer PowerShell for Visual Studio 2026** inside Windows. Follow [Bui
 
 For this one-EXE package, continue below with **Release Self-Contained** after completing the [Release test commands](capture-protection.md#run-the-tests). Run tests before the final self-contained restore/build so a different configuration's restore does not replace the application assets needed for publishing.
 
-Stay in the repository root, containing `mRemoteNG.sln`. Set build-time name, icon, and Start menu defaults in [`Branding.props`](../Branding.props) before building; see [app branding](app-branding.md). A Release configuration enables optimization; it does not establish that Windows/RDP behavior has passed testing.
+Stay in the repository root, containing `mRemoteNG.sln`. Set the build-time shortcut label, icon, and Start menu defaults in [`Branding.props`](../Branding.props) before building; see [app branding](app-branding.md). A Release configuration enables optimization; it does not establish that Windows/RDP behavior has passed testing.
 
 ## Build the self-contained Release application
 
@@ -131,7 +131,7 @@ This configuration already publishes after building. Do not run a separate `dotn
 Confirm that the published executable exists:
 
 ```powershell
-Get-Item -LiteralPath (Join-Path $rdpPublish 'mRemoteNG.exe')
+Get-Item -LiteralPath (Join-Path $rdpPublish 'Capture2Text.exe')
 ```
 
 Keep the entire publish folder intact, including DLLs, runtime files, `Assemblies`, language resources, schemas, themes, and helper executables. **Package this fresh output before launching it or entering credentials.** The self-contained configuration uses portable settings; packaging a folder you have already used can include personal connections, credentials, logs, or settings.
@@ -149,7 +149,7 @@ Run the packager from the repository root in the same PowerShell session:
 Locate the result:
 
 ```powershell
-$rdpPackageExe = Join-Path $rdpPackageRoot 'single-exe\mRemoteNG-Portable.exe'
+$rdpPackageExe = Join-Path $rdpPackageRoot 'single-exe\Capture2Text.exe'
 ```
 
 Inspect the finished file:
@@ -170,13 +170,13 @@ For a Dockur VM, copy the EXE to the host's shared folder:
 Copy-Item -LiteralPath $rdpPackageExe -Destination Z:\
 ```
 
-The host receives it at `~/rdp-build-vm/shared/mRemoteNG-Portable.exe`. Otherwise, transfer the EXE using your normal file-transfer method. No manual ZIP extraction is needed on the receiving PC.
+The host receives it at `~/rdp-build-vm/shared/Capture2Text.exe`. Otherwise, transfer the EXE using your normal file-transfer method. No manual ZIP extraction is needed on the receiving PC.
 
 The packaging command refuses an existing output directory. For another build, start with a new `$rdpPackageRoot`; do not publish over an app folder containing user data. The script packages an existing self-contained application build; it does not compile or validate the main application for you.
 
 ## Launch, settings, and updates
 
-In Windows Explorer, **double-click `mRemoteNG-Portable.exe`**. To launch the build you just created from PowerShell:
+In Windows Explorer, **double-click `Capture2Text.exe`**. To launch the build you just created from PowerShell:
 
 ```powershell
 & $rdpPackageExe
@@ -185,16 +185,16 @@ In Windows Explorer, **double-click `mRemoteNG-Portable.exe`**. To launch the bu
 On a receiving PC, open PowerShell in the folder containing the transferred EXE:
 
 ```powershell
-.\mRemoteNG-Portable.exe
+.\Capture2Text.exe
 ```
 
 From Command Prompt in that folder:
 
 ```bat
-mRemoteNG-Portable.exe
+Capture2Text.exe
 ```
 
-The launcher extracts once to **`%LOCALAPPDATA%\mRemoteNG\Packaged\<payload-hash>\app`**, starts `mRemoteNG.exe`, and exits. Subsequent launches of the same package reuse that directory, preserving portable settings and connections. The application still closes through its normal custom **X** or Windows close path; there is no launcher background service. The actual application remains visible in Task Manager.
+The launcher extracts once to **`%LOCALAPPDATA%\mRemoteNG\Packaged\<payload-hash>\app`**, starts `Capture2Text.exe`, and exits. Subsequent launches of the same package reuse that directory, preserving portable settings and connections. The internal DLL remains `mRemoteNG.dll`, and the portable settings filename remains `mRemoteNG.settings` when the executable is renamed. The application still closes through its normal custom **X** or Windows close path; there is no launcher background service. The actual application remains visible in Task Manager as `Capture2Text.exe` or a Windows-selected label. Blank titles and descriptions do not make its process entry nameless.
 
 Command-line arguments are forwarded to the client. Use absolute paths for connection/configuration file arguments: the client's working directory is the extracted application folder, not the terminal's original directory.
 
@@ -206,7 +206,7 @@ For connection instructions, see [Connect to a remote RDP desktop](capture-prote
 
 ## Verify before distributing
 
-The Windows application build and runtime checks remain pending in this Linux development environment. A successful launcher cross-build or archive check is not verification of Windows launch, ActiveX, or capture exclusion.
+The full application Release build, test-project build and Release Self-Contained publish have passed in a Windows x64 VM. The actual main window also passed initial title/style/affinity and GDI-capture checks. The final selected Windows regression run passed **200 tests**, with **2 monitor-dependent skips** and **no failures**. See the [Windows validation record](capture-protection.md#validation-record) for scope and remaining limits. The transferable package also launched successfully from PowerShell after a copy containing only that EXE. Real RDP sessions and a fresh receiving PC remain untested.
 
 Run the launcher's extraction checks from the repository root with .NET 10, on Windows or Linux:
 
@@ -227,8 +227,14 @@ These checks cover extraction, reuse without overwriting settings, concurrent fi
 3. Close and reopen the same package; settings must persist. Try two launches close together during first extraction, and a path containing spaces.
 4. Exercise the [Windows verification checklist](capture-protection.md#windows-verification-checklist), including a real RDP connection, screenshot comparisons, keyboard/mouse input, and every close path.
 5. Confirm the launcher exits after starting the client and that closing the client leaves neither application nor launcher running.
-6. Verify unavailable storage and a missing extraction marker or `mRemoteNG.exe` produce a visible launcher failure. Reused folders are not checked file-by-file; missing or modified dependency files still need normal application troubleshooting. Test a changed package separately, including the documented settings migration.
+6. Verify unavailable storage and a missing extraction marker or `Capture2Text.exe` produce a visible launcher failure. Reused folders are not checked file-by-file; missing or modified dependency files still need normal application troubleshooting. Test a changed package separately, including the documented settings migration.
 
-Linux validation for this change: **34 extraction checks passed**. Cross-publishing the launcher for Windows x64 with a synthetic payload produced exactly one EXE, both with normal build paths and with the packager's isolated build paths. Its manifest requests `asInvoker`. PowerShell 7 parsed the packaging script successfully, and **28 input-rejection checks passed** without publishing or executing a payload. Actual Windows PowerShell 5.1 packaging, icon extraction, Windows launch, and the full application's Windows/RDP checks remain pending.
+Linux validation for the executable rename: **34 extraction checks passed**. Cross-publishing the actual launcher with a synthetic payload for Windows x64 and ARM64 produced exactly one **`Capture2Text.exe`** with the matching PE architecture and empty File Description/Comments. An x64 no-build/no-restore republish also passed. These checks did not launch the EXE.
 
-These checks cannot establish RDP capture protection. Do not describe this build as Windows-verified until the Windows checks have actually passed.
+Windows validation passed **33/33 launcher extraction checks** and ran the actual packaging script in **Windows PowerShell 5.1**, including icon extraction. It produced exactly one **`Capture2Text.exe`**, **192,890,631 bytes** for the tested artifact. The payload and launcher each had File Description and Comments lengths of **0**, and the original payload's file hashes were unchanged after packaging. The tested EXE's SHA-256 was `C9110B6CAE3CF7E458720C9A4EF3351A6FBC914A081D6F53AD505464C1681C98`.
+
+That EXE was copied alone into a fresh local folder named `transferred exe` and launched from PowerShell. The launcher extracted a new hash-specific cache, started the client and exited with code 0. After startup, the client had an empty native title, opaque tool-window styles and verified affinity `0x11`. F8 toggled topmost on and off while preserving affinity. Clicking its custom **X** closed the client and left no launcher or client running. No remote session or personal credentials were used. A brief idle observation recorded **0 ms CPU time over 5,002 ms**; this is not a sustained performance benchmark.
+
+Earlier packaging validation covered normal and isolated build paths, an `asInvoker` manifest, PowerShell 7 syntax parsing and **28 input-rejection checks**. The fully loaded empty-session application passed F8 topmost toggling while capture affinity remained `0x11`; `WM_CLOSE` exited with code 0, and a QEMU Alt+F4 interaction also exited. ActiveX focus/key-repeat behavior, physical double-click launch, repeated-launch settings reuse, a fresh receiving PC without the SDK or a separately installed runtime, and real RDP checks remain pending.
+
+Report build, packaging, launch and capture results separately. Capture omission has been observed for the application's main window in this Windows VM; RDP session content, other capture implementations and receiving-PC behavior still require testing.

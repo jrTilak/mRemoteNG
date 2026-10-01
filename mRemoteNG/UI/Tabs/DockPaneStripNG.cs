@@ -1162,7 +1162,9 @@ namespace mRemoteNG.UI.Tabs
             if (!m_suspendDrag)
                 base.OnMouseMove(e);
 
-            int index = HitTest(PointToClient(MousePosition));
+            // Use this event's client coordinates; the global cursor may already
+            // have moved by the time a queued mouse message is handled.
+            int index = HitTest(e.Location);
             string toolTip = string.Empty;
 
             bool tabUpdate = false;
@@ -1182,7 +1184,7 @@ namespace mRemoteNG.UI.Tabs
                     else if (tab.MaxWidth > tab.TabWidth)
                         toolTip = tab.Content.DockHandler.TabText;
 
-                    Point mousePos = PointToClient(MousePosition);
+                    Point mousePos = e.Location;
                     if (tab.Rectangle != null)
                     {
                         Rectangle tabRect = tab.Rectangle.Value;
@@ -1463,7 +1465,7 @@ namespace mRemoteNG.UI.Tabs
 
         protected override int HitTest(Point point)
         {
-            if (!TabsRectangle.Contains(point))
+            if (!DrawHelper.RtlTransform(this, TabsRectangle).Contains(point))
                 return -1;
 
             foreach (Tab tab in Tabs)

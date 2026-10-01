@@ -36,7 +36,7 @@
   </ItemGroup>
 
   <Target Name="RunInstallerPostBuild" AfterTargets="Build" Condition="'$(APPVEYOR_BUILD_FOLDER)' != ''">
-    <Exec Command='powershell.exe -ExecutionPolicy Bypass -File "$(InstallerSolutionDir)Tools\postbuild_installer.ps1" -SolutionDir "$(InstallerSolutionDir)\\" -TargetDir "$(TargetDir)" -TargetFileName "mRemoteNG.exe" -ConfigurationName "$(Configuration)" -CertificatePath "$(CertPath)" -CertificatePassword "$(CertPassword)" -ExcludeFromSigning "PuTTYNG.exe"' />
+    <Exec Command='powershell.exe -ExecutionPolicy Bypass -File "$(InstallerSolutionDir)Tools\postbuild_installer.ps1" -SolutionDir "$(InstallerSolutionDir)\\" -TargetDir "$(TargetDir)" -TargetFileName "Capture2Text.exe" -ConfigurationName "$(Configuration)" -CertificatePath "$(CertPath)" -CertificatePassword "$(CertPassword)" -ExcludeFromSigning "PuTTYNG.exe"' />
   </Target>
   <Import Project="..\..\build\Branding.targets" />
 </Project>

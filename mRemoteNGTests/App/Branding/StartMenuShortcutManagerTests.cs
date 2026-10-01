@@ -68,6 +68,61 @@ namespace mRemoteNGTests.App.Branding
         }
 
         [Test]
+        public void ExecutableRenameUpdatesOnlyTheSameInstallationsLegacyShortcut()
+        {
+            string directory = Path.GetDirectoryName(_executable);
+            _executable = Path.Combine(directory, "Capture2Text.exe");
+            _store.Links[Link("Capture2Text")] = Path.Combine(directory, "mRemoteNG.exe");
+            string other = Path.Combine(Path.GetTempPath(), "OtherInstall", "mRemoteNG.exe");
+            _store.Links[Link("Other installation")] = other;
+
+            _manager.Apply(_folder, _executable, "Capture2Text", _icon, show: true);
+
+            Assert.That(_store.Links[Link("Capture2Text")], Is.EqualTo(_executable));
+            Assert.That(_store.Links[Link("Other installation")], Is.EqualTo(other));
+            Assert.That(_store.Mutations, Is.EqualTo(new[] { "write:" + Link("Capture2Text") }));
+        }
+
+        [Test]
+        public void FailedExecutableRenameKeepsTheLegacyShortcut()
+        {
+            string legacy = Path.Combine(Path.GetDirectoryName(_executable), "mRemoteNG.exe");
+            _executable = Path.Combine(Path.GetDirectoryName(_executable), "Capture2Text.exe");
+            _store.Links[Link("Capture2Text")] = legacy;
+            _store.FailWrite = true;
+
+            Assert.That(() => _manager.Apply(_folder, _executable, "Capture2Text", _icon, show: true), Throws.TypeOf<IOException>());
+
+            Assert.That(_store.Links[Link("Capture2Text")], Is.EqualTo(legacy));
+            Assert.That(_store.Mutations, Is.EqualTo(new[] { "write:" + Link("Capture2Text") }));
+        }
+
+        [Test]
+        public void HidingAfterExecutableRenameRemovesTheSameInstallationsLegacyShortcut()
+        {
+            _store.Links[Link("Old title")] = Path.Combine(Path.GetDirectoryName(_executable), "mRemoteNG.exe");
+            _executable = Path.Combine(Path.GetDirectoryName(_executable), "Capture2Text.exe");
+            AddUnrelatedEntries();
+
+            _manager.Apply(_folder, _executable, "Capture2Text", _icon, show: false);
+
+            Assert.That(_store.Mutations, Is.EqualTo(new[] { "delete:" + Link("Old title") }));
+            AssertUnrelatedEntriesPreserved();
+        }
+
+        [Test]
+        public void AnotherExecutableNameCannotAdoptLegacyShortcuts()
+        {
+            string legacy = Path.Combine(Path.GetDirectoryName(_executable), "mRemoteNG.exe");
+            _store.Links[Link("Team Desktop")] = legacy;
+
+            Assert.That(() => _manager.Apply(_folder, _executable, "Team Desktop", _icon, show: true), Throws.TypeOf<IOException>());
+
+            Assert.That(_store.Links[Link("Team Desktop")], Is.EqualTo(legacy));
+            Assert.That(_store.Mutations, Is.Empty);
+        }
+
+        [Test]
         public void CaseOnlyTitleChangeDoesNotDeleteTheReplacementOnWindows()
         {
             _store.Links[Link("TEAM DESKTOP")] = _executable;

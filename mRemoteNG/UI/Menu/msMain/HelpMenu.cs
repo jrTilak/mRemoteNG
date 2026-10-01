@@ -78,7 +78,7 @@ namespace mRemoteNG.UI.Menu
             _mMenInfoHelp.Name = "mMenInfoHelp";
             _mMenInfoHelp.ShortcutKeys = Keys.F1;
             _mMenInfoHelp.Size = new System.Drawing.Size(190, 22);
-            _mMenInfoHelp.Text = Language.MenuItem_HelpContents;
+            _mMenInfoHelp.Text = Language._Help;
             _mMenInfoHelp.Click += mMenInfoHelp_Click;
             // 
             // mMenToolsUpdate
@@ -165,7 +165,7 @@ namespace mRemoteNG.UI.Menu
         public void ApplyLanguage()
         {
             Text = Language._Help;
-            _mMenInfoHelp.Text = Language.MenuItem_HelpContents;
+            _mMenInfoHelp.Text = Language._Help;
             _mMenInfoWebsite.Text = Language.MenuItem_Website;
             _mMenInfoDonate.Text = Language.MenuItem_Donate;
             _mMenInfoForum.Text = Language.MenuItem_SupportForum;

@@ -18,7 +18,7 @@ internal static class Program
                 throw new InvalidOperationException("Windows did not provide a local application-data folder.");
 
             string appDirectory = PayloadExtractor.GetOrExtract(payload, Path.Combine(localData, "mRemoteNG", "Packaged"));
-            var startInfo = new ProcessStartInfo(Path.Combine(appDirectory, "mRemoteNG.exe"))
+            var startInfo = new ProcessStartInfo(Path.Combine(appDirectory, "Capture2Text.exe"))
             {
                 WorkingDirectory = appDirectory,
                 UseShellExecute = false
@@ -33,7 +33,7 @@ internal static class Program
         catch (Exception exception)
         {
             MessageBoxW(IntPtr.Zero, "The packaged application could not be opened.\n\n" + exception.Message,
-                "mRemoteNG portable launcher", 0x00000010);
+                string.Empty, 0x00000010);
             return 1;
         }
     }

@@ -71,7 +71,7 @@ namespace mRemoteNG.UI.Forms.OptionsPages
             var reset = new MrngButton
             {
                 Name = "btnResetApplicationBranding",
-                Text = "Reset app name, icon and Start menu setting to build defaults",
+                Text = "Reset icon and Start menu settings to build defaults",
                 Anchor = AnchorStyles.Left,
                 AutoSize = true,
                 Margin = new Padding(6, 3, 24, 6)
@@ -83,13 +83,13 @@ namespace mRemoteNG.UI.Forms.OptionsPages
                 chkHideFromStartMenu.Checked = !ApplicationBranding.DefaultShowInStartMenu;
             };
 
-            AddBrandingRow(CreateBrandingLabel("Application name (leave blank to use the build default)"));
+            AddBrandingRow(CreateBrandingLabel("Start menu shortcut label (leave blank to use the build default)"));
             AddBrandingRow(txtApplicationDisplayName);
             AddBrandingRow(CreateBrandingLabel("Application icon (.ico, up to 4 MiB)"));
             AddBrandingRow(iconRow);
             AddBrandingRow(chkHideFromStartMenu);
             AddBrandingRow(reset);
-            AddBrandingRow(CreateBrandingLabel("Changes apply after restarting. The executable name and file icon are set when building."));
+            AddBrandingRow(CreateBrandingLabel("Changes apply after restarting. Window titles and executable descriptions stay blank. The shortcut label does not rename the process."));
         }
 
         private static MrngLabel CreateBrandingLabel(string text) => new MrngLabel

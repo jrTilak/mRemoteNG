@@ -82,7 +82,8 @@ namespace mRemoteNG.Config.Settings.Providers
 
         public override string ApplicationName
         {
-            get => Path.GetFileNameWithoutExtension(Application.ExecutablePath);
+            // Keep the existing portable settings file when the apphost is renamed.
+            get => "mRemoteNG";
             set { }
         }
 

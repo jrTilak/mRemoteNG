@@ -6,8 +6,8 @@
   <?define ProductVersion = "1.78.2.0" ?>
   <?define ProductVersionDisplay = "1.78.2-dev" ?>
   <?define ProductLanguage = 1033 ?>
-  <!-- Branding must not change the executable, registry or upgrade identity. -->
-  <?define ExeProcessName = "mRemoteNG.exe" ?>
+  <!-- Keep managed settings, registry and upgrade identities stable. -->
+  <?define ExeProcessName = "Capture2Text.exe" ?>
 
   <?define RequiredDotNetFrameworkMajorVersion = "4" ?>
   <?define RequiredDotNetFrameworkMinorVersion = "0" ?>

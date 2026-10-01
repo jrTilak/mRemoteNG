@@ -330,6 +330,21 @@ namespace mRemoteNGTests.UI.Tabs
             dockPaneStrip.RightToLeft = RightToLeft.Yes;
             Application.DoEvents();
 
+            // The host is intentionally off-screen. Send event coordinates instead
+            // of moving the real cursor, which Windows clamps to the desktop.
+            // The first RTL tab also reaches the strip's right edge; that portion
+            // must remain interactive after the overflow area moves to the left.
+            object firstTab = GetTabAtIndex(dockPaneStrip, 0);
+            Rectangle firstTabRect = (Rectangle)firstTab.GetType().GetProperty("Rectangle").GetValue(firstTab);
+            Rectangle visualFirstTabRect = DrawHelper.RtlTransform(dockPaneStrip, firstTabRect);
+            Point firstTabRightEdge = new(visualFirstTabRect.Right - 2,
+                                         visualFirstTabRect.Top + visualFirstTabRect.Height / 2);
+            MethodInfo hitTestMethod = typeof(DockPaneStripNG).GetMethod("HitTest",
+                BindingFlags.Instance | BindingFlags.NonPublic, null, new[] { typeof(Point) }, null);
+            Assert.That(hitTestMethod, Is.Not.Null, "Could not find HitTest(Point) method");
+            Assert.That(hitTestMethod.Invoke(dockPaneStrip, new object[] { firstTabRightEdge }), Is.EqualTo(0),
+                "The right edge of the first RTL tab should remain clickable");
+
             object tab = GetTabAtIndex(dockPaneStrip, 1);
             Rectangle? logicalTabRect = (Rectangle?)tab.GetType().GetProperty("Rectangle")?.GetValue(tab);
             Assert.That(logicalTabRect, Is.Not.Null, "Could not get tab rectangle");
@@ -345,13 +360,11 @@ namespace mRemoteNGTests.UI.Tabs
             Rectangle visualMinimizeButtonRect = DrawHelper.RtlTransform(dockPaneStrip, logicalMinimizeButtonRect);
 
             Point closeButtonCenter = new(visualCloseButtonRect.Left + visualCloseButtonRect.Width / 2, visualCloseButtonRect.Top + visualCloseButtonRect.Height / 2);
-            Cursor.Position = dockPaneStrip.PointToScreen(closeButtonCenter);
             InvokeOnMouseMove(dockPaneStrip, closeButtonCenter);
 
             Assert.That(GetRectangleProperty(dockPaneStrip, "ActiveClose"), Is.EqualTo(visualCloseButtonRect), "Close hover rectangle should use visual RTL coordinates");
 
             Point minimizeButtonCenter = new(visualMinimizeButtonRect.Left + visualMinimizeButtonRect.Width / 2, visualMinimizeButtonRect.Top + visualMinimizeButtonRect.Height / 2);
-            Cursor.Position = dockPaneStrip.PointToScreen(minimizeButtonCenter);
             InvokeOnMouseMove(dockPaneStrip, minimizeButtonCenter);
 
             Assert.That(GetRectangleProperty(dockPaneStrip, "ActiveMinimize"), Is.EqualTo(visualMinimizeButtonRect), "Minimize hover rectangle should use visual RTL coordinates");
@@ -373,7 +386,7 @@ namespace mRemoteNGTests.UI.Tabs
 
         private static object GetTabAtIndex(DockPaneStripNG dockPaneStrip, int index)
         {
-            PropertyInfo tabsProperty = typeof(DockPaneStrip).GetProperty("Tabs", BindingFlags.Instance | BindingFlags.NonPublic);
+            PropertyInfo tabsProperty = typeof(DockPaneStripBase).GetProperty("Tabs", BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(tabsProperty, Is.Not.Null, "Could not find Tabs property");
 
             object tabs = tabsProperty.GetValue(dockPaneStrip);

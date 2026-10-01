@@ -17,7 +17,7 @@
     <ApplicationIcon>$(ResolvedBrandingIconPath)</ApplicationIcon>
     <GenerateBrandingAssemblyInfo>true</GenerateBrandingAssemblyInfo>
     <Version>1.78.2-dev</Version>
-    <Description>Multi-protocol remote connections manager</Description>
+    <Description></Description>
     <Copyright>$([System.DateTime]::Now.Year) mRemoteNG Dev Team, 2010-2013 Riley McArdle, 2007-2009 Felix Deimel</Copyright>
     <PackageLicenseFile>COPYING.TXT</PackageLicenseFile>
     <PackageProjectUrl>https://mremoteng.org/</PackageProjectUrl>
@@ -30,7 +30,7 @@
     <UseWPF>True</UseWPF>
     <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
     <SignAssembly>False</SignAssembly>
-    <Title>$(ResolvedBrandingDisplayName)</Title>
+    <Title></Title>
     <RepositoryUrl>https://github.com/mRemoteNG/mRemoteNG.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <StartupObject>mRemoteNG.App.ProgramRoot</StartupObject>
@@ -697,4 +697,5 @@
   <Import Project="$(MSBuildExtensionsPath)\Microsoft\VisualStudio\v18.0\TextTemplating\Microsoft.TextTemplating.targets"
           Condition="Exists('$(MSBuildExtensionsPath)\Microsoft\VisualStudio\v18.0\TextTemplating\Microsoft.TextTemplating.targets')" />
   <Import Project="..\build\Branding.targets" />
+  <Import Project="..\build\BrandedAppHost.targets" />
 </Project>

@@ -132,7 +132,7 @@ while ($directories.Count -gt 0) {
     }
 }
 
-foreach ($fileName in @('mRemoteNG.exe', 'mRemoteNG.dll', 'mRemoteNG.deps.json', 'mRemoteNG.runtimeconfig.json',
+foreach ($fileName in @('Capture2Text.exe', 'mRemoteNG.dll', 'mRemoteNG.deps.json', 'mRemoteNG.runtimeconfig.json',
         'coreclr.dll', 'hostfxr.dll', 'hostpolicy.dll', 'System.Private.CoreLib.dll')) {
     if (-not [IO.File]::Exists((Join-Path $sourcePath $fileName))) {
         throw "The self-contained publish directory is missing $fileName. Publish Release Self-Contained first."
@@ -159,7 +159,7 @@ if ('Microsoft.NETCore.App' -notin $includedNames -or 'Microsoft.WindowsDesktop.
 }
 
 $expectedMachine = if ($Runtime -eq 'win-x64') { 0x8664 } else { 0xAA64 }
-foreach ($fileName in @('mRemoteNG.exe', 'coreclr.dll', 'hostfxr.dll', 'hostpolicy.dll')) {
+foreach ($fileName in @('Capture2Text.exe', 'coreclr.dll', 'hostfxr.dll', 'hostpolicy.dll')) {
     $machine = Get-PeMachine (Join-Path $sourcePath $fileName)
     if ($machine -ne $expectedMachine) {
         throw "$fileName has PE machine 0x$('{0:X4}' -f $machine), which does not match $Runtime."
@@ -206,7 +206,7 @@ try {
     }
 
     Add-Type -AssemblyName System.Drawing
-    $icon = [Drawing.Icon]::ExtractAssociatedIcon((Join-Path $payloadPath 'mRemoteNG.exe'))
+    $icon = [Drawing.Icon]::ExtractAssociatedIcon((Join-Path $payloadPath 'Capture2Text.exe'))
     if ($null -eq $icon) { throw 'Could not extract the application icon for the portable launcher.' }
     try {
         $iconStream = [IO.File]::Create($iconPath)
@@ -237,8 +237,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Launcher publishing failed with exit code $LASTEXITCODE." }
 
     $outputs = @(Get-ChildItem -LiteralPath $outputPath -Force)
-    if ($outputs.Count -ne 1 -or $outputs[0].PSIsContainer -or $outputs[0].Name -ne 'mRemoteNG-Portable.exe') {
-        throw 'Launcher publishing did not produce exactly one mRemoteNG-Portable.exe. No distributable has been accepted.'
+    if ($outputs.Count -ne 1 -or $outputs[0].PSIsContainer -or $outputs[0].Name -ne 'Capture2Text.exe') {
+        throw 'Launcher publishing did not produce exactly one Capture2Text.exe. No distributable has been accepted.'
     }
     if ((Get-PeMachine $outputs[0].FullName) -ne $expectedMachine) {
         throw 'The launcher architecture does not match the requested runtime.'

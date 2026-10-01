@@ -30,7 +30,7 @@ namespace mRemoteNGTests
             "";
             #endif
             var path = Path.GetDirectoryName(sourceFilePath);
-            var filePath = $"{path}\\..\\mRemoteNG\\bin\\x64\\{debugOrRelease}{normalOrPortable}\\mRemoteNG.exe";
+            var filePath = $"{path}\\..\\mRemoteNG\\bin\\x64\\{debugOrRelease}{normalOrPortable}\\Capture2Text.exe";
             return filePath;
         }
 

@@ -103,11 +103,14 @@ namespace mRemoteNG.UI.Forms
 
         private void ApplyLanguage()
         {
-            Text = string.IsNullOrEmpty(_passwordName)
-                ? Language.TitlePassword
-                : string.Format(Language.TitlePasswordWithName, _passwordName);
-
-            lblPassword.Text = Language.Password;
+            Text = string.Empty;
+            // The native caption is intentionally blank. Keep the file or
+            // credential being unlocked visible beside the password field.
+            lblPassword.Text = string.IsNullOrEmpty(_passwordName)
+                ? Language.Password
+                : $"{Language.Password}: {_passwordName}";
+            lblPassword.UseMnemonic = false;
+            tableLayoutPanel1.SetColumnSpan(lblPassword, 2);
             lblVerify.Text = Language.Verify;
             btnCancel.Text = Language._Cancel;
             btnOK.Text = Language._Ok;

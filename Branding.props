@@ -1,5 +1,7 @@
 <Project>
   <!-- Edit these defaults, or pass the same properties with MSBuild -p: switches.
+       BrandingDisplayName labels shortcuts and the installer; window titles and
+       executable descriptions remain blank. The apphost is Capture2Text.exe.
        Relative icon paths are resolved from this file's directory (the repo root).
        Use a Windows .ico file, ideally containing 16, 32, 48 and 256 pixel images.
        Existing saved user preferences take priority over these runtime defaults. -->

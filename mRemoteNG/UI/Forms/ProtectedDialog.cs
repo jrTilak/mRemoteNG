@@ -23,7 +23,6 @@ namespace mRemoteNG.UI.Forms
             form.TransparencyKey = Color.Empty;
             form.AllowTransparency = false;
             form.ShowIcon = false;
-            string caption = form.Text;
             string failure = null;
             bool updatingCaption = false;
 
@@ -33,7 +32,10 @@ namespace mRemoteNG.UI.Forms
                 updatingCaption = true;
                 try
                 {
-                    form.Text = failure == null ? caption : $"{caption} — {failure}";
+                    // Keep application-owned captions blank, including titles
+                    // assigned by localization while the dialog is loading.
+                    // Forms without a status control still expose actual failures.
+                    form.Text = failure ?? string.Empty;
                 }
                 finally
                 {
@@ -44,7 +46,6 @@ namespace mRemoteNG.UI.Forms
             void CaptionChanged(object sender, EventArgs e)
             {
                 if (updatingCaption) return;
-                caption = form.Text;
                 UpdateCaption();
             }
 
@@ -59,10 +60,11 @@ namespace mRemoteNG.UI.Forms
                 UpdateCaption();
             }
 
-            if (statusChanged == null) form.TextChanged += CaptionChanged;
             using var protection = new CaptureProtectionManager(message => Logger.Instance.Log?.Warn(message));
+            form.TextChanged += CaptionChanged;
             try
             {
+                UpdateCaption();
                 protection.Register(form, ProtectionChanged);
                 prepare?.Invoke();
                 owner ??= form.Owner;
@@ -79,12 +81,9 @@ namespace mRemoteNG.UI.Forms
             }
             finally
             {
-                if (statusChanged == null)
-                {
-                    form.TextChanged -= CaptionChanged;
-                    failure = null;
-                    UpdateCaption();
-                }
+                form.TextChanged -= CaptionChanged;
+                failure = null;
+                UpdateCaption();
             }
         }
     }

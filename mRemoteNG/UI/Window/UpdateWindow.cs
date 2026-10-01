@@ -153,11 +153,11 @@ namespace mRemoteNG.UI.Window
 
                 if (_appUpdate.IsUpdateAvailable())
                 {
-                    lblStatus.Text = Language.UpdateAvailable;
+                    UpdateInfo updateInfo = _appUpdate.CurrentUpdateInfo;
+                    lblStatus.Text = $"{Language.AvailableVersion}: {updateInfo.Version}";
                     lblStatus.ForeColor = Color.OrangeRed;
                     SetVisibilityOfUpdateControls(true);
 
-                    UpdateInfo updateInfo = _appUpdate.CurrentUpdateInfo;
                     lblLatestVersion.Text = updateInfo.Version.ToString();
                     lblLatestVersionLabel.Visible = true;
                     lblLatestVersion.Visible = true;

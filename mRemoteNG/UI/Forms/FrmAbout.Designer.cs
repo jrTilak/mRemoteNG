@@ -30,6 +30,7 @@
             pbLogo.SizeMode = System.Windows.Forms.PictureBoxSizeMode.AutoSize;
             pbLogo.TabIndex = 1;
             pbLogo.TabStop = false;
+            pbLogo.Visible = false;
             // 
             // pnlBottom
             // 

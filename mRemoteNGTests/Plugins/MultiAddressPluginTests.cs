@@ -185,7 +185,7 @@ public class MultiAddressPluginTests
     }
 
     [Test]
-    public void ResolveAsync_PropagatesUnexpectedResolverExceptions()
+    public async Task ResolveAsync_PropagatesUnexpectedResolverExceptions()
     {
         IMessageWriter messageWriter = Substitute.For<IMessageWriter>();
         MultiAddressPlugin plugin = CreatePlugin(messageWriter, (_, _) => throw new InvalidOperationException("unexpected"));
@@ -194,12 +194,12 @@ public class MultiAddressPluginTests
         connection.SetPluginProperty(IpAddressKey, "192.0.2.60");
         connection.SetPluginProperty(VerifyHostnameMatchesIpKey, bool.TrueString);
 
-        Assert.ThrowsAsync<InvalidOperationException>(async () => await plugin.ResolveAsync(connection, CancellationToken.None));
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await plugin.ResolveAsync(connection, CancellationToken.None));
         messageWriter.DidNotReceive().Warning(Arg.Any<string>(), Arg.Any<bool>());
     }
 
     [Test]
-    public void ResolveAsync_PropagatesCancellation()
+    public async Task ResolveAsync_PropagatesCancellation()
     {
         IMessageWriter messageWriter = Substitute.For<IMessageWriter>();
         MultiAddressPlugin plugin = CreatePlugin(messageWriter, (_, cancellationToken) => Task.FromCanceled<System.Net.IPAddress[]>(cancellationToken));
@@ -211,7 +211,8 @@ public class MultiAddressPluginTests
         using CancellationTokenSource cancellationTokenSource = new();
         cancellationTokenSource.Cancel();
 
-        Assert.ThrowsAsync<OperationCanceledException>(async () => await plugin.ResolveAsync(connection, cancellationTokenSource.Token));
+        var exception = await Assert.CatchAsync<OperationCanceledException>(async () => await plugin.ResolveAsync(connection, cancellationTokenSource.Token));
+        Assert.That(exception.CancellationToken, Is.EqualTo(cancellationTokenSource.Token));
         messageWriter.DidNotReceive().Warning(Arg.Any<string>(), Arg.Any<bool>());
     }
 

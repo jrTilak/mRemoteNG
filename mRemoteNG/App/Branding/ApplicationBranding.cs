@@ -12,7 +12,7 @@ using AppearanceSettings = mRemoteNG.Properties.OptionsAppearancePage;
 
 namespace mRemoteNG.App.Branding
 {
-    /// <summary>Visible branding is a launch snapshot; internal product, settings and process identities stay stable.</summary>
+    /// <summary>Shortcut branding is a launch snapshot; window titles are empty and settings identities stay stable.</summary>
     internal static class ApplicationBranding
     {
         private const int MaximumIconBytes = 4 * 1024 * 1024;
@@ -123,10 +123,10 @@ namespace mRemoteNG.App.Branding
             {
                 // A development launch through dotnet must not create a shortcut
                 // that just opens the dotnet host without the application DLL.
-                executable = Path.Combine(AppContext.BaseDirectory, typeof(ApplicationBranding).Assembly.GetName().Name + ".exe");
+                executable = Path.Combine(AppContext.BaseDirectory, "Capture2Text.exe");
             }
             if (!File.Exists(executable))
-                throw new IOException("The app executable was not found. Build and launch mRemoteNG.exe to update the Start menu shortcut.");
+                throw new IOException("The app executable was not found. Build and launch Capture2Text.exe to update the Start menu shortcut.");
             return executable;
         }
 

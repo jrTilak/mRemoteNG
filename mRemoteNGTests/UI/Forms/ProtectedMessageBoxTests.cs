@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Linq;
 using System.Threading;
 using System.Windows.Forms;
+using mRemoteNG.UI.CaptureProtection;
 using mRemoteNG.UI.Forms;
 using mRemoteNG.UI.TaskDialog;
 using NUnit.Framework;
@@ -134,6 +135,7 @@ namespace mRemoteNGTests.UI.Forms
         }
 
         [Test]
+        [NonParallelizable]
         public void LongMessageRemainsScrollableWithDecisionsAndStatusInsideTheWorkingArea()
         {
             string text = string.Join(Environment.NewLine, Enumerable.Range(1, 160)
@@ -144,20 +146,28 @@ namespace mRemoteNGTests.UI.Forms
             dialog.BuildForm();
 
             Assert.That(dialog.Bounds.Height, Is.LessThanOrEqualTo(Screen.FromHandle(dialog.Handle).WorkingArea.Height));
+            // Screen-coordinate checks need the real native parent chain. A
+            // never-shown child can still belong to a WinForms parking window.
+            dialog.Show();
+            Application.DoEvents();
+            Assert.That(dialog.Bounds.Height, Is.LessThanOrEqualTo(Screen.FromHandle(dialog.Handle).WorkingArea.Height));
             var overflow = (TextBox)dialog.Controls.Find("MessageTextOverflow", true).Single();
+            Assert.That(overflow.Visible, Is.True);
             Assert.That(overflow.Text, Is.EqualTo(text));
             Assert.That(overflow.ReadOnly, Is.True);
             Assert.That(overflow.Multiline, Is.True);
             Assert.That(overflow.ScrollBars, Is.EqualTo(ScrollBars.Vertical));
             Assert.That(overflow.Height, Is.GreaterThan(0));
             Rectangle overflowBounds = BoundsWithinDialog(dialog, overflow);
-            Assert.That(dialog.ClientRectangle.Contains(overflowBounds), Is.True);
+            Assert.That(dialog.ClientRectangle.Contains(overflowBounds), Is.True,
+                $"Dialog client={dialog.ClientRectangle}; overflow in dialog={overflowBounds}; " +
+                $"overflow bounds={overflow.Bounds}; parent bounds={overflow.Parent.Bounds}; DPI={dialog.DeviceDpi}.");
 
-            // Each choice remains outside the scrolling message area. Do not
-            // inspect Visible: this test intentionally never shows the parent.
+            // Each choice remains visible outside the scrolling message area.
             foreach (string name in new[] { "bt1", "bt2", "bt3" })
             {
                 Control button = dialog.Controls.Find(name, true).Single();
+                Assert.That(button.Visible, Is.True, $"{name} must remain visible.");
                 Rectangle buttonBounds = BoundsWithinDialog(dialog, button);
                 Assert.That(dialog.ClientRectangle.Contains(buttonBounds), Is.True, $"{name} must remain clickable.");
                 Assert.That(overflowBounds.IntersectsWith(buttonBounds), Is.False);
@@ -243,6 +253,90 @@ namespace mRemoteNGTests.UI.Forms
             Assert.That(buttonBounds.All(bounds => bounds.Width > 0 && bounds.Height > 0 && shownClient.Contains(bounds)), Is.True);
             Assert.That(statusBounds.Height, Is.GreaterThan(0));
             Assert.That(shownClient.Contains(statusBounds), Is.True);
+        }
+
+        [Test]
+        [NonParallelizable]
+        public void ModalPresentationKeepsTitlesBlankWithoutChangingTheDecisionOrFailureStatus()
+        {
+            const string decision = "Keep the connection to server.example and the exact error & details?";
+            using frmTaskDialog dialog = ProtectedMessageBox.CreateDialog(decision, "Application name",
+                MessageBoxButtons.OKCancel, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2);
+            string preparedCaption = null, shownCaption = null, shownDecision = null, shownStatus = null;
+            Exception snapshotError = null;
+            dialog.Load += (_, _) => dialog.Text = "Localized application name";
+            dialog.Shown += (_, _) =>
+            {
+                try
+                {
+                    dialog.Text = "Late application name";
+                    dialog.SetCaptureProtectionStatus(CaptureProtectionStatus.Failed(5, "Test failure"));
+                    shownCaption = dialog.Text;
+                    shownDecision = dialog.MainInstruction;
+                    shownStatus = dialog.Controls.Find("CaptureProtectionStatus", true).Single().Text;
+                }
+                catch (Exception error)
+                {
+                    snapshotError = error;
+                }
+                finally
+                {
+                    dialog.DialogResult = DialogResult.Cancel;
+                }
+            };
+
+            DialogResult result = ProtectedDialog.Show(dialog, prepare: () =>
+            {
+                preparedCaption = dialog.Text;
+                dialog.Text = "Prepared application name";
+                dialog.BuildForm();
+            }, statusChanged: dialog.SetCaptureProtectionStatus);
+
+            Assert.That(snapshotError, Is.Null, snapshotError?.ToString());
+            Assert.That(result, Is.EqualTo(DialogResult.Cancel));
+            Assert.That(preparedCaption, Is.Empty, "Clear the caption before preparing the HWND.");
+            Assert.That(shownCaption, Is.Empty, "Localization and late title changes must not restore branding.");
+            Assert.That(dialog.Text, Is.Empty, "Closing must not restore the old title.");
+            Assert.That(shownDecision, Is.EqualTo(decision));
+            Assert.That(shownStatus, Is.EqualTo(CaptureProtectionStatus.Failed(5, "Test failure").DisplayText));
+        }
+
+        [Test]
+        [NonParallelizable]
+        public void BlankPasswordCaptionKeepsTheRequestedFileNameVisibleInTheBody()
+        {
+            const string subject = "production & backup.xml";
+            using var dialog = new FrmPassword(subject, newPasswordMode: false);
+            string shownSubject = null;
+            bool labelVisible = false, useMnemonic = true;
+            Exception snapshotError = null;
+            dialog.Shown += (_, _) =>
+            {
+                try
+                {
+                    var label = (Label)dialog.Controls.Find("lblPassword", true).Single();
+                    shownSubject = label.Text;
+                    labelVisible = label.Visible;
+                    useMnemonic = label.UseMnemonic;
+                }
+                catch (Exception error)
+                {
+                    snapshotError = error;
+                }
+                finally
+                {
+                    dialog.DialogResult = DialogResult.Cancel;
+                }
+            };
+
+            DialogResult result = ProtectedDialog.Show(dialog);
+
+            Assert.That(snapshotError, Is.Null, snapshotError?.ToString());
+            Assert.That(result, Is.EqualTo(DialogResult.Cancel));
+            Assert.That(dialog.Text, Is.Empty);
+            Assert.That(labelVisible, Is.True);
+            Assert.That(shownSubject, Does.Contain(subject));
+            Assert.That(useMnemonic, Is.False, "Ampersands in file and credential names must be literal.");
         }
 
         [TestCase(MessageBoxIcon.None, ESysIcons.None)]
