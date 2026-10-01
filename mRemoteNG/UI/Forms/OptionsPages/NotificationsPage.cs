@@ -21,6 +21,13 @@ namespace mRemoteNG.UI.Forms.OptionsPages
         public NotificationsPage()
         {
             InitializeComponent();
+            // Notifications remain available for manual review without interrupting a session.
+            // Keep stored legacy preferences for compatibility, but they no longer enable popups or focus changes.
+            groupBoxPopups.Visible = false;
+            labelSwitchToErrorsAndInfos.Visible = false;
+            chkSwitchToMCInformation.Visible = false;
+            chkSwitchToMCWarnings.Visible = false;
+            chkSwitchToMCErrors.Visible = false;
             ApplyTheme();
             PageIcon = Resources.ImageConverter.GetImageAsIcon(Properties.Resources.LogError_16x);
         }

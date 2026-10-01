@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Runtime.Versioning;
 using System.Windows.Forms;
+using mRemoteNG.UI.Forms;
 
 namespace mRemoteNG.UI.TaskDialog
 {
@@ -11,7 +12,8 @@ namespace mRemoteNG.UI.TaskDialog
         Information,
         Question,
         Warning,
-        Error
+        Error,
+        None
     }
 
     public enum ETaskDialogButtons
@@ -44,6 +46,10 @@ namespace mRemoteNG.UI.TaskDialog
         [SupportedOSPlatform("windows")]
         public static DialogResult ShowTaskDialogBox(IWin32Window owner, string title, string mainInstruction, string content, string expandedInfo, string footer, string verificationText, string radioButtons, string commandButtons, ETaskDialogButtons buttons, ESysIcons mainIcon, ESysIcons footerIcon, int defaultIndex)
         {
+            if (owner is Control control && control.IsHandleCreated && control.InvokeRequired)
+                return (DialogResult)control.Invoke(new Func<DialogResult>(() =>
+                    ShowTaskDialogBox(owner, title, mainInstruction, content, expandedInfo, footer,
+                        verificationText, radioButtons, commandButtons, buttons, mainIcon, footerIcon, defaultIndex)));
             DialogResult result;
             OnTaskDialogShown?.Invoke(null, EventArgs.Empty);
 
@@ -62,8 +68,7 @@ namespace mRemoteNG.UI.TaskDialog
                 td.VerificationText = verificationText;
                 td.Width = EmulatedFormWidth;
                 td.DefaultButtonIndex = defaultIndex;
-                td.BuildForm();
-                result = td.ShowDialog(owner);
+                result = ProtectedDialog.Show(td, owner, td.BuildForm, td.SetCaptureProtectionStatus);
 
                 RadioButtonResult = td.RadioButtonIndex;
                 CommandButtonResult = td.CommandButtonClickedIndex;

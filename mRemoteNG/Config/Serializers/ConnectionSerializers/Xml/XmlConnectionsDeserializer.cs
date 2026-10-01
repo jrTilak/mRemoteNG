@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Globalization;
 using System.Security;
-using System.Windows.Forms;
 using System.Xml;
 using mRemoteNG.App;
 using mRemoteNG.Connection;
@@ -16,8 +15,6 @@ using mRemoteNG.Security;
 using mRemoteNG.Tools;
 using mRemoteNG.Tree;
 using mRemoteNG.Tree.Root;
-using mRemoteNG.UI.Forms;
-using mRemoteNG.UI.TaskDialog;
 using mRemoteNG.Resources.Language;
 using System.Runtime.Versioning;
 
@@ -107,15 +104,7 @@ namespace mRemoteNG.Config.Serializers.ConnectionSerializers.Xml
                 Runtime.MessageCollector.AddMessage(MessageClass.WarningMsg, Language.OldConffile);
 
             if (!(_confVersion > MaxSupportedConfVersion)) return;
-            ShowIncompatibleVersionDialogBox();
             throw new Exception($"Incompatible connection file format (file format version {_confVersion}).");
-        }
-
-        private void ShowIncompatibleVersionDialogBox()
-        {
-            CTaskDialog.ShowTaskDialogBox(FrmMain.Default, Application.ProductName, "Incompatible connection file format", $"The format of this connection file is not supported. Please upgrade to a newer version of {Application.ProductName}.",
-                                          string .Format("{1}{0}File Format Version: {2}{0}Highest Supported Version: {3}", Environment.NewLine, ConnectionFileName, _confVersion, MaxSupportedConfVersion),
-                                          "", "", "", "", ETaskDialogButtons.Ok, ESysIcons.Error, ESysIcons.Error);
         }
 
         private void InitializeRootNode(XmlElement connectionsRootElement)

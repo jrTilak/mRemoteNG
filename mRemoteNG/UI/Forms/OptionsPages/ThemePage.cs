@@ -337,7 +337,7 @@ namespace mRemoteNG.UI.Forms.OptionsPages
         {
             using (FrmInputBox frmInputBox = new(Language.OptionsThemeNewThemeCaption, Language.OptionsThemeNewThemeText, _themeManager.ActiveTheme.Name))
             {
-                DialogResult dr = frmInputBox.ShowDialog();
+                DialogResult dr = ProtectedDialog.Show(frmInputBox);
                 if (dr != DialogResult.OK) return;
                 if (_themeManager.isThemeNameOk(frmInputBox.returnValue))
                 {

@@ -17,6 +17,11 @@ namespace mRemoteNG.UI.TaskDialog
     {
       if (disposing)
       {
+        if (_themeApplied)
+        {
+            mRemoteNG.Themes.ThemeManager.getInstance().ThemeChanged -= ApplyTheme;
+            _themeApplied = false;
+        }
         if(components != null)
             components.Dispose();
         if(_mainInstructionFont != null)

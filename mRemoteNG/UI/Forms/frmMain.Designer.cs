@@ -14,6 +14,7 @@ namespace mRemoteNG.UI.Forms
 				if (disposing)
 				{
                     _protectedChrome?.Dispose();
+                    AlwaysOnTop?.Dispose();
                     CaptureProtection?.Dispose();
                     App.Branding.ApplicationBranding.Dispose();
                     if(components != null)

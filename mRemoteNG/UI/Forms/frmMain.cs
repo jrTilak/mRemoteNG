@@ -15,7 +15,6 @@ using mRemoteNG.Themes;
 using mRemoteNG.Tools;
 using mRemoteNG.UI.Menu;
 using mRemoteNG.UI.Tabs;
-using mRemoteNG.UI.TaskDialog;
 using mRemoteNG.UI.Window;
 using System;
 using System.Collections.Generic;
@@ -86,8 +85,8 @@ namespace mRemoteNG.UI.Forms
         private readonly FileBackupPruner _backupPruner = new();
         public static FrmOptions OptionsForm;
         private readonly ProtectedWindowChrome _protectedChrome;
-        private string _brandingWarning;
         public CaptureProtectionManager CaptureProtection { get; }
+        internal AlwaysOnTopManager AlwaysOnTop { get; }
 
         /// <summary>
         /// Recreates the OptionsForm if it has been disposed.
@@ -119,7 +118,8 @@ namespace mRemoteNG.UI.Forms
             _showFullPathInTitle = Properties.OptionsAppearancePage.Default.ShowCompleteConsPathInTitle;
             CaptureProtection = new CaptureProtectionManager(message => Logger.Instance.Log?.Warn(message));
             InitializeComponent();
-            _protectedChrome = new ProtectedWindowChrome(this, CaptureProtection);
+            AlwaysOnTop = new AlwaysOnTopManager(this, message => Logger.Instance.Log?.Warn(message));
+            _protectedChrome = new ProtectedWindowChrome(this, CaptureProtection, alwaysOnTop: AlwaysOnTop);
 
             Screen targetScreen = (Screen.AllScreens.Length > 1) ? Screen.AllScreens[1] : Screen.AllScreens[0];
 
@@ -218,10 +218,10 @@ namespace mRemoteNG.UI.Forms
 
             MessageCollectorSetup.SetupMessageCollector(messageCollector, _messageWriters);
             MessageCollectorSetup.BuildMessageWritersFromSettings(_messageWriters);
-            _brandingWarning = ApplicationBranding.Initialize();
+            string brandingWarning = ApplicationBranding.Initialize();
             Text = string.Empty;
-            if (_brandingWarning != null)
-                Logger.Instance.Log?.Warn(_brandingWarning);
+            if (brandingWarning != null)
+                messageCollector.AddMessage(MessageClass.WarningMsg, brandingWarning);
  
             Startup.Instance.InitializeProgram(messageCollector);
             Runtime.PluginService.LoadPlugins();
@@ -251,9 +251,6 @@ namespace mRemoteNG.UI.Forms
             Runtime.ConnectionsService.ConnectionsLoaded += ConnectionsServiceOnConnectionsLoaded;
             Runtime.ConnectionsService.ConnectionsSaved += ConnectionsServiceOnConnectionsSaved;
             
-            // Close splash screen before loading connections to ensure password dialog appears on top
-            ProgramRoot.CloseSplash();
-
             CredsAndConsSetup credsAndConsSetup = new();
             credsAndConsSetup.LoadCredsAndCons();
 
@@ -273,7 +270,7 @@ namespace mRemoteNG.UI.Forms
 
             //Fix MagicRemove , revision on panel strategy for mdi
 
-            pnlDock.ShowDocumentIcon = true;
+            pnlDock.ShowDocumentIcon = false;
 
             // A tool window has no taskbar/tray recovery path; ignore legacy StartMinimized.
             if (Properties.OptionsStartupExitPage.Default.StartFullScreen)
@@ -440,65 +437,11 @@ namespace mRemoteNG.UI.Forms
 
         private async void FrmMain_Shown(object sender, EventArgs e)
         {
-            // Bring the main window to the front after splash screen closes
+            // Open directly into the client without a splash or startup notifications.
             Activate();
             BringToFront();
             NativeMethods.SetForegroundWindow(Handle);
-
-            if (_brandingWarning != null)
-            {
-                // Show after the splash closes, so a startup shell/icon error remains actionable.
-                MessageBox.Show(this, _brandingWarning, "App appearance", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                _brandingWarning = null;
-            }
-
-            PromptForUpdatesPreference();
             await CheckForUpdates();
-        }
-
-        private void PromptForUpdatesPreference()
-        {
-            if (!CommonRegistrySettings.AllowCheckForUpdates) return;
-            if (!CommonRegistrySettings.AllowCheckForUpdatesAutomatical) return;
-
-            if (Properties.OptionsUpdatesPage.Default.CheckForUpdatesAsked) return;
-
-            // If the user has already explicitly disabled automatic updates via settings, don't ask again
-            if (!Properties.OptionsUpdatesPage.Default.CheckForUpdatesOnStartup)
-            {
-                Properties.OptionsUpdatesPage.Default.CheckForUpdatesAsked = true;
-                Properties.OptionsUpdatesPage.Default.Save();
-                return;
-            }
-
-            string[] commandButtons =
-            [
-                Language.AskUpdatesCommandRecommended,
-                Language.AskUpdatesCommandCustom,
-                Language.AskUpdatesCommandAskLater
-            ];
-
-            CTaskDialog.ShowTaskDialogBox(this, GeneralAppInfo.ProductName, Language.AskUpdatesMainInstruction, string.Format(Language.AskUpdatesContent, GeneralAppInfo.ProductName), "", "", "", "", string.Join(" | ", commandButtons), ETaskDialogButtons.None, ESysIcons.Question, ESysIcons.Question);
-
-            if (CTaskDialog.CommandButtonResult == 0)
-            {
-                // Use Recommended Settings: enable automatic updates with the default frequency
-                Properties.OptionsUpdatesPage.Default.CheckForUpdatesOnStartup = true;
-                if (Properties.OptionsUpdatesPage.Default.CheckForUpdatesFrequencyDays < 1)
-                    Properties.OptionsUpdatesPage.Default.CheckForUpdatesFrequencyDays = 14;
-                Properties.OptionsUpdatesPage.Default.CheckForUpdatesAsked = true;
-                Properties.OptionsUpdatesPage.Default.Save();
-            }
-            else if (CTaskDialog.CommandButtonResult == 1)
-            {
-                // Customize: let the user configure update settings manually, then open Options
-                Properties.OptionsUpdatesPage.Default.CheckForUpdatesAsked = true;
-                Properties.OptionsUpdatesPage.Default.Save();
-                AppWindows.Show(WindowType.Options);
-                if (AppWindows.OptionsFormWindow != null)
-                    AppWindows.OptionsFormWindow.SetActivatedPage(Language.Updates);
-            }
-            // For "Ask Later" (button 2), CheckForUpdatesAsked remains false so the dialog will show again next startup
         }
 
         private async Task CheckForUpdates()
@@ -529,33 +472,9 @@ namespace mRemoteNG.UI.Forms
 
             // Count all shown connection forms, including floating and auto-hidden tabs.
             ConnectionTab[] tabs = Application.OpenForms.OfType<ConnectionTab>().ToArray();
-            int openConnections = tabs.Count(tab => tab.Tag is InterfaceControl);
-            int confirmation = Properties.Settings.Default.ConfirmCloseConnection;
-            if (openConnections > 0 &&
-                (confirmation == (int)ConfirmCloseEnum.All ||
-                 confirmation == (int)ConfirmCloseEnum.Exit ||
-                 (confirmation == (int)ConfirmCloseEnum.Multiple && openConnections > 1)))
-            {
-                DialogResult result = CTaskDialog.MessageBox(this, ApplicationBranding.DisplayName, Language.ConfirmExitMainInstruction, "", "", "", Language.CheckboxDoNotShowThisMessageAgain, ETaskDialogButtons.YesNo, ESysIcons.Question, ESysIcons.Question);
-                if (CTaskDialog.VerificationChecked)
-                    Properties.Settings.Default.ConfirmCloseConnection = (int)ConfirmCloseEnum.Never;
-                if (result != DialogResult.Yes)
-                {
-                    e.Cancel = true;
-                    return;
-                }
-            }
-
-            // Resolve pending edits before disconnecting anything. A child window's
-            // canceled Close() cannot cancel its parent application's shutdown.
-            if (OptionsForm is { IsDisposed: false } && !OptionsForm.ConfirmClose(this, offerRestart: false))
-            {
-                e.Cancel = true;
-                return;
-            }
-
-            // Commit to closing only after all confirmations. All close entry points use this path.
+            // Closing exits directly. Only Apply/OK commits pending Options control edits.
             IsClosing = true;
+            AlwaysOnTop.Dispose();
             ProgramRoot.UiCultureChanged -= OnUiCultureChanged;
             _themeManager.ThemeChanged -= ApplyTheme;
             Properties.Settings.Default.PropertyChanged -= OnApplicationSettingChanged;
@@ -563,14 +482,30 @@ namespace mRemoteNG.UI.Forms
             foreach (ConnectionTab tab in tabs)
             {
                 if (tab.IsDisposed) continue;
-                tab.silentClose = true;
-                tab.Close();
+                try
+                {
+                    tab.silentClose = true;
+                    tab.Close();
+                }
+                catch (Exception exception)
+                {
+                    // Keep releasing the remaining sessions and application resources.
+                    Logger.Instance.Log?.Error("A session could not close cleanly during shutdown.", exception);
+                }
             }
             if (Runtime.WindowList != null)
             {
                 foreach (BaseWindow window in Runtime.WindowList.Cast<BaseWindow>().ToArray())
                 {
-                    if (!window.IsDisposed) window.Close();
+                    if (window.IsDisposed) continue;
+                    try
+                    {
+                        window.Close();
+                    }
+                    catch (Exception exception)
+                    {
+                        Logger.Instance.Log?.Error("A panel could not close cleanly during shutdown.", exception);
+                    }
                 }
             }
 
@@ -622,6 +557,7 @@ namespace mRemoteNG.UI.Forms
 
         protected override void WndProc(ref System.Windows.Forms.Message m)
         {
+            if (AlwaysOnTop?.ProcessWindowMessage(ref m) == true) return;
             if (ProtectedWindowChrome.ProcessNonClientMessage(ref m) || _protectedChrome?.ProcessWindowMessage(ref m) == true) return;
             // Listen for and handle operating system messages
             try

@@ -123,8 +123,6 @@ namespace mRemoteNG.App
             }
             catch (Exception ex)
             {
-                ProgramRoot.CloseSplash();
-
                 if (Properties.OptionsDBsPage.Default.UseSQLServer)
                 {
                     MessageCollector.AddExceptionMessage(Language.LoadFromSqlFailed, ex);

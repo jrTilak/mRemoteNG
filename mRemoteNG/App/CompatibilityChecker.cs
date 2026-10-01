@@ -38,9 +38,6 @@ namespace mRemoteNG.App
             string errorText = string.Format(Language.ErrorFipsPolicyIncompatible, GeneralAppInfo.ProductName);
             messageCollector.AddMessage(MessageClass.ErrorMsg, errorText, true);
 
-            //About to pop up a message, let's not block it...
-            ProgramRoot.CloseSplash();
-
             DialogResult ShouldIStayOrShouldIGo = CTaskDialog.MessageBox(Application.ProductName ?? string.Empty, Language.CompatibilityProblemDetected, errorText, "", "", Language.CheckboxDoNotShowThisMessageAgain, ETaskDialogButtons.OkCancel, ESysIcons.Warning, ESysIcons.Warning);
             if (CTaskDialog.VerificationChecked && ShouldIStayOrShouldIGo == DialogResult.OK)
             {
@@ -93,16 +90,8 @@ namespace mRemoteNG.App
                 return;
             }
 
-            messageCollector.AddMessage(MessageClass.WarningMsg, "Lenovo AutoScroll Utility found", true);
-
-            CTaskDialog.MessageBox(Application.ProductName ?? string.Empty, Language.CompatibilityProblemDetected,
-                                   string.Format(Language.CompatibilityLenovoAutoScrollUtilityDetected,
-                                                 Application.ProductName), "",
-                                   "", Language.CheckboxDoNotShowThisMessageAgain, ETaskDialogButtons.Ok,
-                                   ESysIcons.Warning,
-                                   ESysIcons.Warning);
-            if (CTaskDialog.VerificationChecked)
-                Settings.Default.CompatibilityWarnLenovoAutoScrollUtility = false;
+            messageCollector.AddMessage(MessageClass.WarningMsg,
+                string.Format(Language.CompatibilityLenovoAutoScrollUtilityDetected, Application.ProductName), true);
         }
     }
 }

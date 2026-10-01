@@ -54,7 +54,7 @@ namespace mRemoteNG.UI.Window
             CloseButton = !IsGeneralPanel;
             CloseButtonVisible = !IsGeneralPanel;
             connDock.DocumentStyle = DocumentStyle.DockingWindow;
-            connDock.ShowDocumentIcon = true;
+            connDock.ShowDocumentIcon = false;
 
             connDock.ActiveContentChanged += ConnDockOnActiveContentChanged;
         }
@@ -337,9 +337,8 @@ namespace mRemoteNG.UI.Window
 
             try
             {
-                foreach (IDockContent dockContent in connDock.Documents.ToArray())
+                foreach (ConnectionTab tabP in connDock.Documents.OfType<ConnectionTab>().ToArray())
                 {
-                    ConnectionTab tabP = (ConnectionTab)dockContent;
                     if (tabP.Tag == null) continue;
                     tabP.silentClose = true;
                     tabP.Close();
@@ -869,7 +868,7 @@ namespace mRemoteNG.UI.Window
                 using (FrmInputBox frmInputBox = new(Language.NewTitle, Language.NewTitle,
                                                          ((ConnectionTab)interfaceControl.Parent).TabText))
                 {
-                    DialogResult dr = frmInputBox.ShowDialog();
+                    DialogResult dr = ProtectedDialog.Show(frmInputBox);
                     if (dr != DialogResult.OK) return;
                     if (!string.IsNullOrEmpty(frmInputBox.returnValue))
                         ((ConnectionTab)interfaceControl.Parent).TabText = frmInputBox.returnValue.Replace("&", "&&");

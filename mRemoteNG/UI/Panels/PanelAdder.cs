@@ -122,7 +122,7 @@ namespace mRemoteNG.UI.Panels
                 ConnectionWindow conW = (ConnectionWindow)((ToolStripMenuItem)sender).Tag;
 
                 using (FrmInputBox newTitle = new(Language.NewTitle, Language.NewTitle + ":", ""))
-                    if (newTitle.ShowDialog() == DialogResult.OK && !string.IsNullOrEmpty(newTitle.returnValue))
+                    if (ProtectedDialog.Show(newTitle) == DialogResult.OK && !string.IsNullOrEmpty(newTitle.returnValue))
                         conW.SetFormText(newTitle.returnValue.Replace("&", "&&"));
             }
             catch (Exception ex)

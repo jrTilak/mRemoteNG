@@ -147,7 +147,8 @@ namespace mRemoteNG.UI.Window
         /// </summary>
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
-            if (!e.Cancel && _optionsForm is { IsDisposed: false } && !_optionsForm.ConfirmClose(this))
+            if (!e.Cancel && !FrmMain.Default.IsClosing &&
+                _optionsForm is { IsDisposed: false } && !_optionsForm.ConfirmClose(this))
             {
                 e.Cancel = true;
                 return;

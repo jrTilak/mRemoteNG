@@ -13,11 +13,12 @@ namespace mRemoteNG.UI.Forms
     {
         private readonly Form _form;
         private readonly CaptureProtectionManager _manager;
+        private readonly AlwaysOnTopManager _alwaysOnTop;
         private readonly Panel _caption;
         private readonly Label _title;
-        private readonly PictureBox _appIcon;
         private Icon _windowIcon;
         private readonly Label _status;
+        private string _protectionStatus = "Capture protection: pending";
         private readonly Button _maximize;
         private readonly Button _close;
         private readonly ThemeManager _theme = ThemeManager.getInstance();
@@ -26,32 +27,34 @@ namespace mRemoteNG.UI.Forms
         private bool _layingOut;
         private Point? _dragStart;
 
-        public ProtectedWindowChrome(Form form, CaptureProtectionManager manager, Action close = null)
+        public ProtectedWindowChrome(Form form, CaptureProtectionManager manager, Action close = null,
+            AlwaysOnTopManager alwaysOnTop = null)
         {
             _form = form;
             _manager = manager;
+            _alwaysOnTop = alwaysOnTop;
             form.FormBorderStyle = FormBorderStyle.None;
             form.ShowInTaskbar = false;
+            form.ShowIcon = false;
             form.MinimizeBox = false;
             form.Opacity = 1;
             form.TransparencyKey = Color.Empty;
             form.AllowTransparency = false;
 
             _caption = new Panel { Name = "ProtectedTitleBar", TabStop = false };
-            _appIcon = new PictureBox { SizeMode = PictureBoxSizeMode.Zoom, TabStop = false, AccessibleName = "App icon" };
             _title = new Label { TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true, UseMnemonic = false };
             _status = new Label
             {
-                Text = "Capture protection: pending", TextAlign = ContentAlignment.MiddleRight,
-                AutoEllipsis = false, UseMnemonic = false, AccessibleName = "Capture protection status"
+                Text = _protectionStatus, TextAlign = ContentAlignment.MiddleRight,
+                AutoEllipsis = true, UseMnemonic = false, AccessibleName = "Capture protection status"
             };
             _maximize = CreateButton("□", "Maximize or restore window");
             _close = CreateButton("X", "Close application");
             _maximize.Click += (_, _) => ToggleMaximize();
             _close.Click += (_, _) => (close ?? form.Close)();
-            _caption.Controls.AddRange(new Control[] { _appIcon, _title, _status, _maximize, _close });
+            _caption.Controls.AddRange(new Control[] { _title, _status, _maximize, _close });
             form.Controls.Add(_caption);
-            foreach (Control control in new Control[] { _caption, _appIcon, _title, _status })
+            foreach (Control control in new Control[] { _caption, _title, _status })
             {
                 control.MouseDown += CaptionMouseDown;
                 control.MouseMove += CaptionMouseMove;
@@ -60,10 +63,15 @@ namespace mRemoteNG.UI.Forms
             }
 
             form.TextChanged += UpdateTitle;
+            if (_alwaysOnTop != null)
+            {
+                _alwaysOnTop.Register(form);
+                _alwaysOnTop.FailureChanged += HotKeyFailureChanged;
+            }
             manager.Register(form, status =>
             {
-                _status.Text = status.DisplayText;
-                LayoutCaption();
+                _protectionStatus = status.DisplayText;
+                RefreshStatus();
             });
             form.Resize += Resize;
             form.Layout += Layout;
@@ -138,12 +146,19 @@ namespace mRemoteNG.UI.Forms
                 Icon oldIcon = _windowIcon;
                 _windowIcon = icon;
                 _form.Icon = icon;
-                Image previousImage = _appIcon.Image;
-                _appIcon.Image = icon.ToBitmap();
-                previousImage?.Dispose();
                 oldIcon?.Dispose();
             }
             UpdateTitle(_form, EventArgs.Empty);
+        }
+
+        private void HotKeyFailureChanged(string error) => RefreshStatus();
+
+        private void RefreshStatus()
+        {
+            string hotKeyError = _alwaysOnTop?.StatusError;
+            _status.Text = string.IsNullOrEmpty(hotKeyError)
+                ? _protectionStatus : $"{_protectionStatus} | {hotKeyError}";
+            LayoutCaption();
         }
 
         private void LayoutCaption()
@@ -156,10 +171,10 @@ namespace mRemoteNG.UI.Forms
                 _caption.SetBounds(border, border, Math.Max(0, _form.ClientSize.Width - border * 2), height);
                 _close.SetBounds(_caption.Width - buttonWidth, 0, buttonWidth, height);
                 _maximize.SetBounds(_close.Left - buttonWidth, 0, buttonWidth, height);
-                int statusWidth = TextRenderer.MeasureText(_status.Text, _status.Font).Width + gap;
+                int statusWidth = Math.Min(Math.Max(0, _maximize.Left - gap * 2),
+                    TextRenderer.MeasureText(_status.Text, _status.Font).Width + gap);
                 _status.SetBounds(Math.Max(0, _maximize.Left - gap - statusWidth), 0, statusWidth, height);
-                _appIcon.SetBounds(gap, Scale(8), Scale(20), Scale(20));
-                int titleLeft = _appIcon.Right + gap;
+                int titleLeft = gap;
                 _title.SetBounds(titleLeft, 0, Math.Max(0, _status.Left - titleLeft - gap), height);
                 _caption.BringToFront();
             }
@@ -286,12 +301,13 @@ namespace mRemoteNG.UI.Forms
             _manager.Unregister(_form);
             _theme.ThemeChanged -= ApplyTheme;
             ApplicationBranding.Initialized -= RefreshBranding;
+            if (_alwaysOnTop != null)
+                _alwaysOnTop.FailureChanged -= HotKeyFailureChanged;
             _form.TextChanged -= UpdateTitle;
             _form.Resize -= Resize;
             _form.Layout -= Layout;
             _form.DpiChanged -= DpiChanged;
             _form.Disposed -= FormDisposed;
-            _appIcon.Image?.Dispose();
             _windowIcon?.Dispose();
             _caption.Dispose();
         }

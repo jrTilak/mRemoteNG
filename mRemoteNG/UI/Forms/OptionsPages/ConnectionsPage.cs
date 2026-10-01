@@ -22,6 +22,8 @@ namespace mRemoteNG.UI.Forms.OptionsPages
         {
             InitializeComponent();
             if (LicenseManager.UsageMode == LicenseUsageMode.Designtime) return;
+            // Application exit is immediate; confirmation choices apply only to session closes.
+            radCloseWarnExit.Visible = false;
             ApplyTheme();
             PageIcon = Resources.ImageConverter.GetImageAsIcon(Properties.Resources.ASPWebSite_16x);
 
@@ -96,10 +98,8 @@ namespace mRemoteNG.UI.Forms.OptionsPages
             switch (Settings.Default.ConfirmCloseConnection)
             {
                 case (int)ConfirmCloseEnum.Never:
-                    radCloseWarnNever.Checked = true;
-                    break;
                 case (int)ConfirmCloseEnum.Exit:
-                    radCloseWarnExit.Checked = true;
+                    radCloseWarnNever.Checked = true;
                     break;
                 case (int)ConfirmCloseEnum.Multiple:
                     radCloseWarnMultiple.Checked = true;

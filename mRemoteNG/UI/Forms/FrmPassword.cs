@@ -45,7 +45,7 @@ namespace mRemoteNG.UI.Forms
         /// <returns></returns>
         public Optional<SecureString> GetKey()
         {
-            DialogResult dialog = ShowDialog();
+            DialogResult dialog = ProtectedDialog.Show(this);
             return dialog == DialogResult.OK
                 ? _password
                 : Optional<SecureString>.Empty;

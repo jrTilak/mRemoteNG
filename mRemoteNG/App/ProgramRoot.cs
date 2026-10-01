@@ -2,7 +2,6 @@
 
 using mRemoteNG.App.Update;
 using mRemoteNG.Config.Settings;
-using mRemoteNG.Messages;
 using mRemoteNG.Themes;
 using mRemoteNG.UI.Forms;
 using mRemoteNG.Resources.Language;
@@ -26,10 +25,8 @@ namespace mRemoteNG.App
     public static class ProgramRoot
     {
         private static Mutex? _mutex;
+        private static bool _handlingUiException;
         private static string customResourcePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Languages");
-
-        private static System.Threading.Thread? _wpfSplashThread;
-        private static FrmSplashScreenNew? _wpfSplash;
 
         public static event EventHandler? UiCultureChanged;
 
@@ -251,13 +248,11 @@ namespace mRemoteNG.App
             // Match the OS dark mode for common controls (scrollbars, context menus, ...)
             // to the active theme. Applied once at startup; theme changes require a restart.
             // Read the persisted flag instead of constructing ThemeManager here, so we avoid
-            // any theme folder/file I/O before the splash is shown. The flag is kept in sync
+            // theme folder/file I/O before the main window starts. The flag is kept in sync
             // by ThemeManager whenever the active theme or theming state changes.
             Application.SetColorMode(Properties.OptionsThemePage.Default.IsActiveThemeDark
                 ? SystemColorMode.Dark
                 : SystemColorMode.Classic);
-
-            ShowSplashOnStaThread();
 
             Application.Run(FrmMain.Default);
             CloseSingletonInstanceMutex();
@@ -333,71 +328,56 @@ namespace mRemoteNG.App
 
         private static void ApplicationOnThreadException(object sender, ThreadExceptionEventArgs e)
         {
-            CloseSplash();
-            if (FrmMain.Default.IsDisposed) return;
-            FrmUnhandledException window = new(e.Exception, false);
-            window.ShowDialog(FrmMain.Default);
+            Environment.ExitCode = 1;
+            LogUnhandledException("An unexpected UI exception occurred. The application will close.", e.Exception);
+            if (_handlingUiException) return;
+
+            _handlingUiException = true;
+            try
+            {
+                // Do not create the lazy main form while recovering from an error.
+                if (!FrmMain.IsCreated)
+                {
+                    Application.ExitThread();
+                    return;
+                }
+
+                FrmMain main = FrmMain.Default;
+                if (main.IsClosing || main.IsDisposed) return;
+                main.Close();
+            }
+            catch (Exception closingException)
+            {
+                LogUnhandledException("The application could not close normally after an unexpected UI exception.", closingException);
+                Application.ExitThread();
+            }
+            finally
+            {
+                _handlingUiException = false;
+            }
         }
 
         private static void CurrentDomainOnUnhandledException(object sender, UnhandledExceptionEventArgs e)
         {
             Exception exception = e.ExceptionObject as Exception
-                                  ?? new Exception(e.ExceptionObject?.ToString() ?? "Unknown error");
-            FrmUnhandledException window = new(exception, e.IsTerminating);
-            window.ShowDialog(FrmMain.Default);
+                                  ?? new Exception("Unknown unhandled exception.");
+            // This event can run on a background thread. Leave termination to the CLR
+            // instead of constructing UI or trying to recover from a fatal exception.
+            LogUnhandledException("An unhandled exception occurred outside the UI message loop.", exception);
         }
 
-        private static void ShowSplashOnStaThread()
+        private static void LogUnhandledException(string message, Exception exception)
         {
-            _wpfSplashThread = new System.Threading.Thread(() =>
+            try
             {
-                _wpfSplash = FrmSplashScreenNew.GetInstance();
-
-                // Center the splash screen on the primary screen before showing it
-                _wpfSplash.WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen;
-
-                _wpfSplash.ShowInTaskbar = false;
-                _wpfSplash.Show();
-                System.Windows.Forms.Integration.ElementHost.EnableModelessKeyboardInterop(_wpfSplash);
-                System.Windows.Threading.Dispatcher.Run(); // WPF message loop
-            })
-            { IsBackground = true };
-            _wpfSplashThread.SetApartmentState(System.Threading.ApartmentState.STA);
-            _wpfSplashThread.Start();
-        }
-
-        internal static void CloseSplash()
-        {
-            // Capture and clear the cached state up front so this is safe to call from
-            // multiple startup paths (e.g. the LoadConnections error handler) without
-            // acting on stale references or re-running against an already-closed splash.
-            FrmSplashScreenNew? splash = _wpfSplash;
-            System.Threading.Thread? splashThread = _wpfSplashThread;
-            _wpfSplash = null;
-            _wpfSplashThread = null;
-
-            if (splash != null)
-            {
-                try
-                {
-                    splash.Dispatcher.Invoke(() =>
-                    {
-                        splash.Close();
-                        // The splash runs its own STA message loop; ask it to exit so the
-                        // thread can actually be joined below instead of running forever.
-                        splash.Dispatcher.BeginInvokeShutdown(System.Windows.Threading.DispatcherPriority.Normal);
-                    });
-                }
-                catch (Exception ex)
-                {
-                    // Never let splash cleanup mask an in-progress startup error.
-                    Runtime.MessageCollector.AddExceptionMessage("Failed to close splash screen.", ex, MessageClass.WarningMsg);
-                }
+                Logger.Instance.Log?.Error(message, exception);
             }
-
-            // The splash thread is a background thread, so a bounded join keeps startup
-            // from hanging if the dispatcher did not shut down; it dies on process exit anyway.
-            splashThread?.Join(TimeSpan.FromSeconds(2));
+            catch (Exception loggingException)
+            {
+                // Logging failure must not replace the original error with another dialog.
+                Debug.WriteLine(exception);
+                Debug.WriteLine(loggingException);
+            }
         }
 
         // Helper to show a dialog with "Download" and "Cancel" buttons.
@@ -497,7 +477,7 @@ namespace mRemoteNG.App
             // Adjust label height to wrap text properly
             lbl.Height = btnCancel.Top - lbl.Top - 8;
 
-            return dialog.ShowDialog();
+            return ProtectedDialog.Show(dialog);
         }
     }
 }

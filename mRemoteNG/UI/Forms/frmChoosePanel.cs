@@ -86,7 +86,7 @@ namespace mRemoteNG.UI.Forms
             using (FrmInputBox frmInputBox =
                 new(Language.NewPanel, Language.PanelName + ":", Language.NewPanel))
             {
-                DialogResult dr = frmInputBox.ShowDialog();
+                DialogResult dr = ProtectedDialog.Show(frmInputBox);
                 if (dr != DialogResult.OK || string.IsNullOrEmpty(frmInputBox.returnValue)) return;
                 _panelAdder.AddPanel(frmInputBox.returnValue);
                 AddAvailablePanels();

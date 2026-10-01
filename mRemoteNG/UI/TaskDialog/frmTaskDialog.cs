@@ -6,6 +6,7 @@ using System.Windows.Forms;
 using mRemoteNG.UI.Controls;
 using mRemoteNG.Resources.Language;
 using System.Runtime.Versioning;
+using mRemoteNG.UI.CaptureProtection;
 
 namespace mRemoteNG.UI.TaskDialog
 {
@@ -36,6 +37,9 @@ namespace mRemoteNG.UI.TaskDialog
         private const int DesignImgMainSize = 32;
 
         private bool _themeApplied;
+        private readonly Label _captureStatus;
+        private int? _messageBoxDefaultIndex;
+        private TextBox _messageOverflow;
 
         #endregion
 
@@ -125,6 +129,13 @@ namespace mRemoteNG.UI.TaskDialog
         public frmTaskDialog()
         {
             InitializeComponent();
+            _captureStatus = new Label
+            {
+                Name = "CaptureProtectionStatus", Dock = DockStyle.Bottom,
+                Text = CaptureProtectionStatus.Pending.DisplayText, UseMnemonic = false,
+                TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(8, 0, 8, 0)
+            };
+            Controls.Add(_captureStatus);
 
             // _isVista = VistaTaskDialog.IsAvailableOnThisOS;
             if (!_isVista && CTaskDialog.UseToolWindowOnXp) // <- shall we use the smaller toolbar?
@@ -139,6 +150,30 @@ namespace mRemoteNG.UI.TaskDialog
 
         #endregion
 
+        internal void SetCaptureProtectionStatus(CaptureProtectionStatus status)
+        {
+            _captureStatus.Text = status.DisplayText;
+            _captureStatus.AccessibleDescription = status.Detail;
+        }
+
+        internal void ConfigureMessageBox(int defaultIndex)
+        {
+            _messageBoxDefaultIndex = defaultIndex;
+            lbMainInstruction.UseMnemonic = false;
+            lbContent.UseMnemonic = false;
+            if (_messageOverflow == null)
+            {
+                _messageOverflow = new TextBox
+                {
+                    Name = "MessageTextOverflow", Multiline = true, ReadOnly = true,
+                    WordWrap = true, ScrollBars = ScrollBars.Vertical, BorderStyle = BorderStyle.None,
+                    Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
+                    Visible = false
+                };
+                pnlMainInstruction.Controls.Add(_messageOverflow);
+            }
+        }
+
         //--------------------------------------------------------------------------------
 
         #region BuildForm
@@ -152,10 +187,15 @@ namespace mRemoteNG.UI.TaskDialog
             // Force handle creation so DeviceDpi is accurate and any initial
             // auto-scaling is applied before we compute the layout.
             _ = Handle;
+            if (_messageBoxDefaultIndex.HasValue)
+                Width = Math.Min(Width, Math.Max(LogicalToDeviceUnits(250),
+                    Screen.FromHandle(Handle).WorkingArea.Width - LogicalToDeviceUnits(40)));
 
             // Reset focus control for this rebuild to ensure it's properly reassigned
             // This prevents stale references to disposed controls after rebuilds
             _focusControl = null;
+            AcceptButton = null;
+            CancelButton = null;
 
             // Clean up previously created dynamic controls (idempotent rebuild)
             foreach (var rb in _radioButtonCtrls)
@@ -180,6 +220,9 @@ namespace mRemoteNG.UI.TaskDialog
             // Setup Main Instruction
             switch (MainIcon)
             {
+                case ESysIcons.None:
+                    imgMain.Image = null;
+                    break;
                 case ESysIcons.Information:
                     imgMain.Image = SystemIcons.Information.ToBitmap();
                     break;
@@ -195,9 +238,12 @@ namespace mRemoteNG.UI.TaskDialog
                 default:
                     throw new ArgumentOutOfRangeException();
             }
+            imgMain.Visible = MainIcon != ESysIcons.None;
 
             lbMainInstruction.Text = _mainInstruction;
             lbMainInstruction.Font = _mainInstructionFont;
+            lbMainInstruction.Visible = true;
+            if (_messageOverflow != null) _messageOverflow.Visible = false;
             AdjustLabelHeight(lbMainInstruction);
             pnlMainInstruction.Height = Math.Max(LogicalToDeviceUnits(41), lbMainInstruction.Height + LogicalToDeviceUnits(16));
 
@@ -283,7 +329,10 @@ namespace mRemoteNG.UI.TaskDialog
                     btn.Click += CommandButton_Click;
                     _commandButtonCtrls.Add(btn);
                     if (i == DefaultButtonIndex)
+                    {
+                        AcceptButton = btn;
                         _focusControl = btn;
+                    }
                 }
 
                 pnlCommandButtons.Height = pnlHeight;
@@ -291,6 +340,7 @@ namespace mRemoteNG.UI.TaskDialog
             }
 
             // Setup Buttons
+            bt1.Visible = bt2.Visible = bt3.Visible = true;
             switch (Buttons)
             {
                 case ETaskDialogButtons.YesNo:
@@ -363,6 +413,26 @@ namespace mRemoteNG.UI.TaskDialog
                          Buttons == ETaskDialogButtons.OkCancel ||
                          Buttons == ETaskDialogButtons.YesNoCancel;
 
+            if (_messageBoxDefaultIndex.HasValue)
+            {
+                MrngButton[] messageButtons = Buttons switch
+                {
+                    ETaskDialogButtons.Ok => new[] { bt3 },
+                    ETaskDialogButtons.OkCancel => new[] { bt2, bt3 },
+                    ETaskDialogButtons.YesNo => new[] { bt2, bt3 },
+                    ETaskDialogButtons.YesNoCancel => new[] { bt1, bt2, bt3 },
+                    _ => throw new InvalidOperationException("Unsupported protected message-box buttons.")
+                };
+                int defaultIndex = _messageBoxDefaultIndex.Value;
+                if (defaultIndex < 0 || defaultIndex >= messageButtons.Length)
+                    throw new ArgumentOutOfRangeException(nameof(DefaultButtonIndex));
+                AcceptButton = messageButtons[defaultIndex];
+                _focusControl = messageButtons[defaultIndex];
+                // Native Yes/No has no Esc or close result. OK uses OK for Esc/X.
+                CancelButton = Buttons == ETaskDialogButtons.YesNo ? null : bt3;
+                ControlBox = Buttons != ETaskDialogButtons.YesNo;
+            }
+
             if (!showVerifyCheckbox && ExpandedInfo == "" && Buttons == ETaskDialogButtons.None)
                 pnlButtons.Visible = false;
             else
@@ -394,7 +464,33 @@ namespace mRemoteNG.UI.TaskDialog
                 formHeight += pnlFooter.Height;
             }
 
-            ClientSize = new Size(ClientSize.Width, formHeight);
+            _captureStatus.Height = LogicalToDeviceUnits(28);
+            if (_messageBoxDefaultIndex.HasValue)
+            {
+                // A native MessageBox constrained long text to the desktop. Keep
+                // all decision buttons outside the scrollable replacement area.
+                int frameHeight = Math.Max(0, Height - ClientSize.Height);
+                int maximumClientHeight = Screen.FromHandle(Handle).WorkingArea.Height -
+                    frameHeight - LogicalToDeviceUnits(40);
+                int otherContentHeight = formHeight - pnlMainInstruction.Height + _captureStatus.Height;
+                int maximumTextHeight = Math.Max(LogicalToDeviceUnits(60), maximumClientHeight - otherContentHeight);
+                if (pnlMainInstruction.Height > maximumTextHeight)
+                {
+                    formHeight -= pnlMainInstruction.Height - maximumTextHeight;
+                    pnlMainInstruction.Height = maximumTextHeight;
+                    lbMainInstruction.Visible = false;
+                    _messageOverflow.Text = _mainInstruction;
+                    _messageOverflow.Font = _mainInstructionFont;
+                    int margin = LogicalToDeviceUnits(8);
+                    _messageOverflow.SetBounds(lbMainInstruction.Left, margin,
+                        Math.Max(1, pnlMainInstruction.ClientSize.Width - lbMainInstruction.Left - margin),
+                        Math.Max(1, maximumTextHeight - margin * 2));
+                    _messageOverflow.Visible = true;
+                    _messageOverflow.SelectionStart = 0;
+                    _messageOverflow.SelectionLength = 0;
+                }
+            }
+            ClientSize = new Size(ClientSize.Width, formHeight + _captureStatus.Height);
 
             _formBuilt = true;
             if (!_themeApplied)
@@ -412,8 +508,30 @@ namespace mRemoteNG.UI.TaskDialog
             ThemeManager.getInstance().ApplyThemeToTitleBar(this);
         }
 
+        protected override bool ProcessDialogKey(Keys keyData)
+        {
+            if (_messageBoxDefaultIndex.HasValue && Buttons == ETaskDialogButtons.YesNo && keyData == Keys.Escape)
+                return true;
+            return base.ProcessDialogKey(keyData);
+        }
+
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            base.OnFormClosing(e);
+            if (!_messageBoxDefaultIndex.HasValue || e.CloseReason != CloseReason.UserClosing) return;
+            if (Buttons == ETaskDialogButtons.YesNo && DialogResult != DialogResult.Yes && DialogResult != DialogResult.No)
+                e.Cancel = true;
+            else if (Buttons == ETaskDialogButtons.Ok && (DialogResult == DialogResult.None || DialogResult == DialogResult.Cancel))
+                DialogResult = DialogResult.OK;
+        }
+
         private void ApplyTheme()
         {
+            if (_messageOverflow != null)
+            {
+                _messageOverflow.BackColor = pnlMainInstruction.BackColor;
+                _messageOverflow.ForeColor = pnlMainInstruction.ForeColor;
+            }
             if (!ThemeManager.getInstance().ActiveAndExtended) return;
 
             pnlButtons.BackColor = ThemeManager.getInstance().ActiveTheme.ExtendedPalette.getColor("Dialog_Background");
@@ -444,6 +562,13 @@ namespace mRemoteNG.UI.TaskDialog
                 ThemeManager.getInstance().ActiveTheme.ExtendedPalette.getColor("Dialog_Background");
             pnlRadioButtons.ForeColor =
                 ThemeManager.getInstance().ActiveTheme.ExtendedPalette.getColor("Dialog_Foreground");
+            _captureStatus.BackColor = pnlButtons.BackColor;
+            _captureStatus.ForeColor = pnlButtons.ForeColor;
+            if (_messageOverflow != null)
+            {
+                _messageOverflow.BackColor = pnlMainInstruction.BackColor;
+                _messageOverflow.ForeColor = pnlMainInstruction.ForeColor;
+            }
         }
 
         //--------------------------------------------------------------------------------
@@ -555,6 +680,8 @@ namespace mRemoteNG.UI.TaskDialog
             {
                 switch (MainIcon)
                 {
+                    case ESysIcons.None:
+                        break;
                     case ESysIcons.Error:
                         System.Media.SystemSounds.Hand.Play();
                         break;

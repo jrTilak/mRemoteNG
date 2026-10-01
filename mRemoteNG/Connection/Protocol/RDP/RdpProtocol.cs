@@ -1024,7 +1024,8 @@ namespace mRemoteNG.Connection.Protocol.RDP
             Close(); //Simply close the RDP Session if the idle timeout has been triggered.
 
             if (!_alertOnIdleDisconnect) return;
-            MessageBox.Show($@"The {connectionInfo.Name} session was disconnected due to inactivity", @"Session Disconnected", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            Runtime.MessageCollector.AddMessage(MessageClass.InformationMsg,
+                $"The {connectionInfo.Name} session was disconnected due to inactivity.");
         }
 
         private void RDPEvent_OnFatalError(int errorCode)

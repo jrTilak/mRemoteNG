@@ -86,15 +86,17 @@ namespace mRemoteNG.UI.Controls
             // let's use the defaults - this looks terrible in my testing....
             //e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
             //e.Graphics.TextRenderingHint = TextRenderingHint.AntiAlias;
+            TextFormatFlags textFormatFlags = UseMnemonic
+                ? _textFormatFlags : _textFormatFlags | TextFormatFlags.NoPrefix;
             if (Enabled)
             {
-                TextRenderer.DrawText(e.Graphics, Text, Font, ClientRectangle, ForeColor, _textFormatFlags);
+                TextRenderer.DrawText(e.Graphics, Text, Font, ClientRectangle, ForeColor, textFormatFlags);
             }
             else
             {
                 Color disabledtextLabel =
                     _themeManager.ActiveTheme.ExtendedPalette.getColor("TextBox_Disabled_Foreground");
-                TextRenderer.DrawText(e.Graphics, Text, Font, ClientRectangle, disabledtextLabel, _textFormatFlags);
+                TextRenderer.DrawText(e.Graphics, Text, Font, ClientRectangle, disabledtextLabel, textFormatFlags);
             }
         }
 

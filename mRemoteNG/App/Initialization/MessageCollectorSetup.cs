@@ -36,7 +36,6 @@ namespace mRemoteNG.App.Initialization
 #endif
             messageWriterList.Add(BuildTextLogMessageWriter());
             messageWriterList.Add(BuildNotificationPanelMessageWriter());
-            messageWriterList.Add(BuildPopupMessageWriter());
         }
 
         private static IMessageWriter BuildDebugConsoleWriter()
@@ -57,19 +56,7 @@ namespace mRemoteNG.App.Initialization
             return new OnlyLogMessageFilter(
                 new MessageTypeFilterDecorator(
                     new NotificationPanelMessageFilteringOptions(),
-                    new MessageFocusDecorator(AppWindows.ErrorsForm,
-                    new NotificationPanelSwitchOnMessageFilteringOptions(),
                     new NotificationPanelMessageWriter(AppWindows.ErrorsForm))
-                    )
-                );
-        }
-
-        private static IMessageWriter BuildPopupMessageWriter()
-        {
-            return new OnlyLogMessageFilter(
-                new MessageTypeFilterDecorator(
-                    new PopupMessageFilteringOptions(),
-                    new PopupMessageWriter())
                 );
         }
     }

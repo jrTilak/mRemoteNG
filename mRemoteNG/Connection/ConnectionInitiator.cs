@@ -303,8 +303,8 @@ namespace mRemoteNG.Connection
                 return PanelAdder.DefaultPanelName;
             }
 
-            FrmChoosePanel frmPnl = new();
-            return frmPnl.ShowDialog() == DialogResult.OK
+            using FrmChoosePanel frmPnl = new();
+            return ProtectedDialog.Show(frmPnl) == DialogResult.OK
                 ? frmPnl.Panel
                 : null;
         }

@@ -44,7 +44,7 @@ namespace mRemoteNG.App
             if (main.IsClosing || main.IsDisposed) return;
 
             _restartRequested = true;
-            // Use the normal shutdown path, including the active-session confirmation.
+            // Use the normal shutdown path so active sessions and resources are released.
             main.Close();
             if (!main.IsDisposed)
                 _restartRequested = false;
@@ -81,9 +81,7 @@ namespace mRemoteNG.App
             }
             catch (Exception ex)
             {
-                // The settings are already saved; keep a failed restart actionable.
-                MessageBox.Show($"The app could not restart. Open it again to apply the saved settings.\n\n{ex.Message}",
-                    "Restart failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Logger.Instance.Log?.Error("The app could not restart. Open it again to apply the saved settings.", ex);
             }
         }
 

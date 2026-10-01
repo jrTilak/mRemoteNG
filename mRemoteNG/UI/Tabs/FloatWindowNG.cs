@@ -33,7 +33,7 @@ namespace mRemoteNG.UI.Tabs
             AllowEndUserDocking = false;
             DoubleClickTitleBarToDock = false;
             _chrome = new ProtectedWindowChrome(this, FrmMain.Default.CaptureProtection,
-                () => FrmMain.Default.Close());
+                () => FrmMain.Default.Close(), FrmMain.Default.AlwaysOnTop);
         }
 
         protected override CreateParams CreateParams =>
