@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <AssemblyName>mRemoteNG-Portable</AssemblyName>
+    <RootNamespace>mRemoteNG.Packaging</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <PublishTrimmed>false</PublishTrimmed>
+    <DebugType Condition="'$(Configuration)' == 'Release'">None</DebugType>
+    <DebugSymbols Condition="'$(Configuration)' == 'Release'">false</DebugSymbols>
+    <LauncherIcon Condition="'$(LauncherIcon)' == ''">$(MSBuildThisFileDirectory)..\..\..\mRemoteNG\Icons\mRemoteNG.ico</LauncherIcon>
+    <ApplicationIcon>$(LauncherIcon)</ApplicationIcon>
+    <Title>mRemoteNG portable launcher</Title>
+    <Description>Extracts and starts the bundled mRemoteNG application.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="Tests\**\*.cs;bin\**\*.cs;obj\**\*.cs" />
+    <EmbeddedResource Include="$(PayloadZip)" LogicalName="mRemoteNG.PackagedPayload.zip" Condition="'$(PayloadZip)' != ''" />
+  </ItemGroup>
+  <Target Name="ValidatePackagedPayload" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(PayloadZip)' == '' or !Exists('$(PayloadZip)')" Text="Supply PayloadZip with the absolute path of the complete application ZIP." />
+    <Error Condition="!Exists('$(LauncherIcon)')" Text="LauncherIcon does not exist: $(LauncherIcon)" />
+  </Target>
+</Project>

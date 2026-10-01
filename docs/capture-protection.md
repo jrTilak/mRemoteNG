@@ -18,6 +18,8 @@ The existing [build workflow](../.github/workflows/Build_mR-NB.yml) uses these t
 
 ### Build and launch
 
+Use the `Release` configuration for the production build. The commands below produce an optimized, framework-dependent application; Windows runtime verification remains required before distribution.
+
 Open **Developer PowerShell for Visual Studio 2026** from the Windows Start menu, or through Visual Studio's **Tools → Command Line → Developer PowerShell**. Run each command below separately, in order, in the same PowerShell session. Stop and resolve any error before continuing.
 
 Confirm that Visual Studio's MSBuild is available:
@@ -75,22 +77,24 @@ t4 .\mRemoteNG\Properties\AssemblyInfo.tt -P platformType=x64 "-r:$rdpInterop"
 Restore application dependencies:
 
 ```powershell
-dotnet restore .\mRemoteNG\mRemoteNG.csproj -p:Configuration=Debug -p:Platform=x64
+dotnet restore .\mRemoteNG\mRemoteNG.csproj -p:Configuration=Release -p:Platform=x64
 ```
 
 Build the application with Visual Studio's full MSBuild:
 
 ```powershell
-MSBuild.exe .\mRemoteNG\mRemoteNG.csproj /p:Configuration=Debug /p:Platform=x64 /p:MSBuildEnableWorkloadResolver=false /verbosity:minimal
+MSBuild.exe .\mRemoteNG\mRemoteNG.csproj /p:Configuration=Release /p:Platform=x64 /p:MSBuildEnableWorkloadResolver=false /verbosity:minimal
 ```
 
 After a successful build, launch the application:
 
 ```powershell
-.\mRemoteNG\bin\x64\Debug\mRemoteNG.exe
+.\mRemoteNG\bin\x64\Release\mRemoteNG.exe
 ```
 
-Keep the **entire output folder** together when copying the application to another PC. This framework-dependent build requires **.NET 10 Desktop Runtime** and the matching **Visual C++ Redistributable** listed in the [runtime requirements](../README.md#minimum-requirements). To build Release instead, use `Configuration=Release` in both restore and build commands and launch from `mRemoteNG\bin\x64\Release`. Build ARM64 on a matching Windows development environment using the platform configuration in the existing workflow. A successful dependency restore alone does not mean the application has been compiled.
+Keep the **entire output folder** together when copying the application to another PC. Regular `Release` requires **.NET 10 Desktop Runtime** and the matching **Visual C++ Redistributable** listed in the [runtime requirements](../README.md#minimum-requirements). The separate `Release Self-Contained` configuration includes the .NET runtime in its published output. For Windows VM/Docker guidance, self-contained publishing and a single EXE that opens the client directly, see the [production packaging guide](production-packaging.md).
+
+Build ARM64 on a matching Windows development environment using the platform configuration in the existing workflow. A successful dependency restore alone does not mean the application has been compiled.
 
 Pass the DLL reference as an absolute path, as above. A relative `-r:.\...` path can cause `dotnet-t4` to throw `System.IO.FileLoadException: The given assembly name was invalid`. `Resolve-Path` also confirms the DLL exists before transformation, and quoting the complete reference argument handles folder names containing spaces. If T4 instead says its input file does not exist, check that PowerShell is in the repository root; the source project is in the nested `mRemoteNG` folder.
 
@@ -101,13 +105,13 @@ Use full Visual Studio `msbuild`, rather than `dotnet build`, for the applicatio
 Build the existing NUnit suite on Windows:
 
 ```powershell
-MSBuild.exe .\mRemoteNGTests\mRemoteNGTests.csproj /restore /p:Configuration=Debug /p:Platform=x64 /p:MSBuildEnableWorkloadResolver=false /verbosity:minimal
+MSBuild.exe .\mRemoteNGTests\mRemoteNGTests.csproj /restore /p:Configuration=Release /p:Platform=x64 /p:MSBuildEnableWorkloadResolver=false /verbosity:minimal
 ```
 
 After a successful test build, run the suite:
 
 ```powershell
-dotnet vstest .\mRemoteNGTests\bin\x64\Debug\mRemoteNGTests.dll /Logger:trx
+dotnet vstest .\mRemoteNGTests\bin\x64\Release\mRemoteNGTests.dll /Logger:trx
 ```
 
 The separate `mRemoteNGSpecs` project is not in the main solution and currently targets .NET 9 while referencing the .NET 10 application. Record this existing mismatch separately if attempting that suite; it is outside this focused patch.

@@ -32,6 +32,11 @@ From a Windows Visual Studio Developer PowerShell with the repository's .NET/Win
 
 ```powershell
 MSBuild.exe .\mRemoteNG\mRemoteNG.csproj -restore -t:Build -p:Configuration=Release -p:Platform=x64
+```
+
+If building the MSI as well, run its build separately:
+
+```powershell
 MSBuild.exe .\mRemoteNGInstaller\Installer\Installer.wixproj -restore -t:Build -p:Configuration=Release -p:Platform=x64
 ```
 
@@ -42,6 +47,8 @@ MSBuild.exe .\mRemoteNG\mRemoteNG.csproj -restore -t:Build -p:Configuration=Rele
 ```
 
 Saved user overrides take priority over runtime build defaults. Reset branding preferences and restart when checking a new build's defaults. An installer build does not rebuild the main app; build the app with the same configuration first. For the repository's complete build requirements and test commands, see [the capture-protection build guide](capture-protection.md).
+
+For an optimized self-contained build packaged as one directly launchable EXE, use the [production packaging guide](production-packaging.md). Set the branding defaults before building the application payload.
 
 The build generates title, description and runtime-default assembly metadata separately from the T4 version file, using MSBuild's [WriteCodeFragment task](https://learn.microsoft.com/en-us/visualstudio/msbuild/writecodefragment-task). The assembly name, executable filename, `AssemblyProduct`, settings identity, installation directory, registry roots and MSI upgrade code stay stable. Name/icon customization is not a separate side-by-side product identity. Existing license notices and upstream attribution remain intact.
 
