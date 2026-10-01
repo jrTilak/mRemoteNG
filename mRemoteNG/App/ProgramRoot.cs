@@ -343,8 +343,7 @@ namespace mRemoteNG.App
                 }
 
                 FrmMain main = FrmMain.Default;
-                if (main.IsClosing || main.IsDisposed) return;
-                main.Close();
+                CloseAfterUiException(main, main.IsClosing, Application.ExitThread);
             }
             catch (Exception closingException)
             {
@@ -355,6 +354,28 @@ namespace mRemoteNG.App
             {
                 _handlingUiException = false;
             }
+        }
+
+        internal static void CloseAfterUiException(Form main, bool alreadyClosing, Action exitThread)
+        {
+            if (main.IsDisposed) return;
+            if (!alreadyClosing)
+            {
+                try
+                {
+                    main.Close();
+                }
+                catch (Exception closingException)
+                {
+                    LogUnhandledException("The application could not close normally after an unexpected UI exception.", closingException);
+                }
+            }
+
+            // Close sends WM_CLOSE. WinForms can route a FormClosing exception
+            // back through ThreadException and return without disposing the form.
+            // IsClosing records intent only; verify completion before returning.
+            if (!main.IsDisposed)
+                exitThread();
         }
 
         private static void CurrentDomainOnUnhandledException(object sender, UnhandledExceptionEventArgs e)

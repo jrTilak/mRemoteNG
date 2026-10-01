@@ -65,6 +65,16 @@ namespace mRemoteNG.UI.Forms
             {
                 protection.Register(form, ProtectionChanged);
                 prepare?.Invoke();
+                owner ??= form.Owner;
+                if (owner == null)
+                {
+                    // ActiveForm can refer to a foreground form on another UI
+                    // thread. Never read that form's HWND through ShowDialog.
+                    Form active = Form.ActiveForm;
+                    if (active != form && active is { IsDisposed: false, Disposing: false, IsHandleCreated: true } &&
+                        !active.InvokeRequired)
+                        owner = active;
+                }
                 return owner == null ? form.ShowDialog() : form.ShowDialog(owner);
             }
             finally

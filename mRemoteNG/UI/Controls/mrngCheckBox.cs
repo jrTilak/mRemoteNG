@@ -37,6 +37,13 @@ namespace mRemoteNG.UI.Controls
             OUT
         }
 
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+                ThemeManager.getInstance().ThemeChanged -= OnCreateControl;
+            base.Dispose(disposing);
+        }
+
         public MouseState _mice { get; set; }
 
 

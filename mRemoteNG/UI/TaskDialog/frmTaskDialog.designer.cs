@@ -17,6 +17,10 @@ namespace mRemoteNG.UI.TaskDialog
     {
       if (disposing)
       {
+        if (imgMain != null)
+            ReplaceOwnedImage(imgMain, null);
+        if (imgFooter != null)
+            ReplaceOwnedImage(imgFooter, null);
         if (_themeApplied)
         {
             mRemoteNG.Themes.ThemeManager.getInstance().ThemeChanged -= ApplyTheme;

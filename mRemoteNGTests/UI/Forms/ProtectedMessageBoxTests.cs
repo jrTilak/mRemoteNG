@@ -9,8 +9,8 @@ using NUnit.Framework;
 
 namespace mRemoteNGTests.UI.Forms
 {
-    // Build real WinForms controls without running a modal UI loop. These tests
-    // verify result semantics; screenshot exclusion still needs Windows capture tests.
+    // Most cases build real controls without a modal UI loop. The monitor case
+    // closes itself from Shown; screenshot exclusion still needs capture tests.
     [TestFixture]
     [Platform("Win")]
     [Apartment(ApartmentState.STA)]
@@ -170,6 +170,79 @@ namespace mRemoteNGTests.UI.Forms
             Assert.That(overflowBounds.IntersectsWith(statusBounds), Is.False);
             Assert.That(dialog.AcceptButton.DialogResult, Is.EqualTo(DialogResult.No));
             Assert.That(dialog.CancelButton.DialogResult, Is.EqualTo(DialogResult.Cancel));
+        }
+
+        [TestCase(FormStartPosition.CenterScreen)]
+        [TestCase(FormStartPosition.CenterParent)]
+        [NonParallelizable]
+        public void ModalPresentationRefitsLongTextToTheShorterOwnerMonitor(FormStartPosition startPosition)
+        {
+            Screen[] screens = Screen.AllScreens.OrderBy(screen => screen.WorkingArea.Height).ToArray();
+            if (screens.Length < 2 || screens[0].WorkingArea.Height == screens[^1].WorkingArea.Height)
+                Assert.Ignore("Requires two monitors with different working-area heights.");
+            Rectangle ownerArea = screens[0].WorkingArea;
+            Rectangle initialArea = screens[^1].WorkingArea;
+            using var owner = new Form
+            {
+                StartPosition = FormStartPosition.Manual,
+                ShowInTaskbar = false,
+                Bounds = new Rectangle(ownerArea.Left + ownerArea.Width / 4, ownerArea.Top + ownerArea.Height / 4,
+                    ownerArea.Width / 2, ownerArea.Height / 2)
+            };
+            _ = owner.Handle;
+            string text = string.Join(Environment.NewLine, Enumerable.Range(1, 200)
+                .Select(line => $"Line {line}: keep the decision buttons accessible on the owner's shorter monitor."));
+            using frmTaskDialog dialog = ProtectedMessageBox.CreateDialog(text, "Owner monitor decision",
+                MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2);
+            dialog.StartPosition = FormStartPosition.Manual;
+            dialog.Location = new Point(initialArea.Left + (initialArea.Width - dialog.Width) / 2, initialArea.Top + 8);
+            dialog.BuildForm();
+
+            if (owner.DeviceDpi != dialog.DeviceDpi)
+                Assert.Ignore("Requires equal window DPI so a DPI-change rebuild cannot mask the regression.");
+            if (Screen.FromHandle(owner.Handle).DeviceName != screens[0].DeviceName ||
+                Screen.FromHandle(dialog.Handle).DeviceName != screens[^1].DeviceName)
+                Assert.Ignore("Could not place both initial HWNDs on the required monitors.");
+            if (dialog.Height <= ownerArea.Height)
+                Assert.Ignore("The available monitor geometry does not produce an initially oversized dialog.");
+
+            dialog.StartPosition = startPosition;
+            bool shown = false;
+            Rectangle shownBounds = Rectangle.Empty, shownClient = Rectangle.Empty, statusBounds = Rectangle.Empty;
+            Rectangle[] buttonBounds = Array.Empty<Rectangle>();
+            Exception snapshotError = null;
+            dialog.Shown += (_, _) =>
+            {
+                try
+                {
+                    shown = true;
+                    shownBounds = dialog.Bounds;
+                    shownClient = dialog.ClientRectangle;
+                    buttonBounds = new[] { "bt1", "bt2", "bt3" }.Select(name =>
+                        BoundsWithinDialog(dialog, dialog.Controls.Find(name, true).Single())).ToArray();
+                    statusBounds = BoundsWithinDialog(dialog,
+                        dialog.Controls.Find("CaptureProtectionStatus", true).Single());
+                }
+                catch (Exception error)
+                {
+                    snapshotError = error;
+                }
+                finally
+                {
+                    dialog.DialogResult = DialogResult.Cancel;
+                }
+            };
+
+            DialogResult result = ProtectedDialog.Show(dialog, owner, dialog.BuildForm, dialog.SetCaptureProtectionStatus);
+
+            Assert.That(snapshotError, Is.Null, snapshotError?.ToString());
+            Assert.That(shown, Is.True);
+            Assert.That(result, Is.EqualTo(DialogResult.Cancel));
+            Assert.That(ownerArea.Contains(shownBounds), Is.True, "Refit and recenter on the resolved owner monitor.");
+            Assert.That(buttonBounds, Has.Length.EqualTo(3));
+            Assert.That(buttonBounds.All(bounds => bounds.Width > 0 && bounds.Height > 0 && shownClient.Contains(bounds)), Is.True);
+            Assert.That(statusBounds.Height, Is.GreaterThan(0));
+            Assert.That(shownClient.Contains(statusBounds), Is.True);
         }
 
         [TestCase(MessageBoxIcon.None, ESysIcons.None)]

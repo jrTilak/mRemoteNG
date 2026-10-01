@@ -189,7 +189,7 @@ namespace mRemoteNG.UI.TaskDialog
             _ = Handle;
             if (_messageBoxDefaultIndex.HasValue)
                 Width = Math.Min(Width, Math.Max(LogicalToDeviceUnits(250),
-                    Screen.FromHandle(Handle).WorkingArea.Width - LogicalToDeviceUnits(40)));
+                    MessageBoxWorkingArea().Width - LogicalToDeviceUnits(40)));
 
             // Reset focus control for this rebuild to ensure it's properly reassigned
             // This prevents stale references to disposed controls after rebuilds
@@ -221,19 +221,19 @@ namespace mRemoteNG.UI.TaskDialog
             switch (MainIcon)
             {
                 case ESysIcons.None:
-                    imgMain.Image = null;
+                    ReplaceOwnedImage(imgMain, null);
                     break;
                 case ESysIcons.Information:
-                    imgMain.Image = SystemIcons.Information.ToBitmap();
+                    ReplaceOwnedImage(imgMain, SystemIcons.Information.ToBitmap());
                     break;
                 case ESysIcons.Question:
-                    imgMain.Image = SystemIcons.Question.ToBitmap();
+                    ReplaceOwnedImage(imgMain, SystemIcons.Question.ToBitmap());
                     break;
                 case ESysIcons.Warning:
-                    imgMain.Image = SystemIcons.Warning.ToBitmap();
+                    ReplaceOwnedImage(imgMain, SystemIcons.Warning.ToBitmap());
                     break;
                 case ESysIcons.Error:
-                    imgMain.Image = SystemIcons.Error.ToBitmap();
+                    ReplaceOwnedImage(imgMain, SystemIcons.Error.ToBitmap());
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
@@ -446,16 +446,16 @@ namespace mRemoteNG.UI.TaskDialog
                 switch (FooterIcon)
                 {
                     case ESysIcons.Information:
-                        imgFooter.Image = ResizeBitmap(SystemIcons.Information.ToBitmap(), 16, 16);
+                        ReplaceOwnedImage(imgFooter, ResizeBitmap(SystemIcons.Information.ToBitmap(), 16, 16));
                         break;
                     case ESysIcons.Question:
-                        imgFooter.Image = ResizeBitmap(SystemIcons.Question.ToBitmap(), 16, 16);
+                        ReplaceOwnedImage(imgFooter, ResizeBitmap(SystemIcons.Question.ToBitmap(), 16, 16));
                         break;
                     case ESysIcons.Warning:
-                        imgFooter.Image = ResizeBitmap(SystemIcons.Warning.ToBitmap(), 16, 16);
+                        ReplaceOwnedImage(imgFooter, ResizeBitmap(SystemIcons.Warning.ToBitmap(), 16, 16));
                         break;
                     case ESysIcons.Error:
-                        imgFooter.Image = ResizeBitmap(SystemIcons.Error.ToBitmap(), 16, 16);
+                        ReplaceOwnedImage(imgFooter, ResizeBitmap(SystemIcons.Error.ToBitmap(), 16, 16));
                         break;
                     default:
                         throw new ArgumentOutOfRangeException();
@@ -470,7 +470,7 @@ namespace mRemoteNG.UI.TaskDialog
                 // A native MessageBox constrained long text to the desktop. Keep
                 // all decision buttons outside the scrollable replacement area.
                 int frameHeight = Math.Max(0, Height - ClientSize.Height);
-                int maximumClientHeight = Screen.FromHandle(Handle).WorkingArea.Height -
+                int maximumClientHeight = MessageBoxWorkingArea().Height -
                     frameHeight - LogicalToDeviceUnits(40);
                 int otherContentHeight = formHeight - pnlMainInstruction.Height + _captureStatus.Height;
                 int maximumTextHeight = Math.Max(LogicalToDeviceUnits(60), maximumClientHeight - otherContentHeight);
@@ -572,8 +572,16 @@ namespace mRemoteNG.UI.TaskDialog
         }
 
         //--------------------------------------------------------------------------------
+        private static void ReplaceOwnedImage(PictureBox picture, Image image)
+        {
+            Image previous = picture.Image;
+            picture.Image = image;
+            previous?.Dispose();
+        }
+
         private Image ResizeBitmap(Image srcImg, int newWidth, int newHeight)
         {
+            using Image source = srcImg; // The caller creates a fresh bitmap for this resize.
             float percentWidth = LogicalToDeviceUnits(newWidth) / (float)srcImg.Width;
             float percentHeight = LogicalToDeviceUnits(newHeight) / (float)srcImg.Height;
 
@@ -627,6 +635,32 @@ namespace mRemoteNG.UI.TaskDialog
             base.OnDpiChanged(e);
             if (_formBuilt)
                 BuildForm();
+        }
+
+        //--------------------------------------------------------------------------------
+        private Rectangle MessageBoxWorkingArea()
+        {
+            // An oversized HWND can overlap a neighboring monitor more than its
+            // intended owner monitor. Prefer the resolved owner for centered dialogs.
+            if ((StartPosition == FormStartPosition.CenterParent || StartPosition == FormStartPosition.CenterScreen) &&
+                Owner is { IsDisposed: false, IsHandleCreated: true } owner)
+                return Screen.FromHandle(owner.Handle).WorkingArea;
+            return Screen.FromHandle(Handle).WorkingArea;
+        }
+
+        //--------------------------------------------------------------------------------
+        protected override void OnLoad(EventArgs e)
+        {
+            base.OnLoad(e);
+            if (!_messageBoxDefaultIndex.HasValue || !_formBuilt) return;
+
+            // ShowDialog resolves its owner and initial monitor in Form.OnLoad.
+            // Refit before painting when that differs from the early BuildForm HWND.
+            BuildForm();
+            if (StartPosition == FormStartPosition.CenterParent)
+                CenterToParent();
+            else if (StartPosition == FormStartPosition.CenterScreen)
+                CenterToScreen();
         }
 
         //--------------------------------------------------------------------------------
