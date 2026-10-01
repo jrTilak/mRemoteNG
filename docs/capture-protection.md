@@ -4,9 +4,43 @@ This patch extends mRemoteNG. Microsoft Remote Desktop ActiveX still handles RDP
 
 ## Build on Windows
 
-Use the repository's Windows build environment: Visual Studio 2026 with .NET desktop development and full MSBuild, .NET 10 SDK, Windows SDK 10.0.26100.0, and the registered Microsoft Remote Desktop ActiveX component (`mstscax.dll`). The existing [build workflow](../.github/workflows/Build_mR-NB.yml) uses these tools and transforms the assembly-info T4 template. Windows 11 24H2 or newer is the appropriate test host for the existing test project's `SupportedOSPlatformVersion` of 10.0.26100.0.
+### Requirements
 
-Open **Developer PowerShell for Visual Studio 2026** in your cloned repository root (the folder containing `mRemoteNG.sln`). The source project is in a second `mRemoteNG` folder inside that root. Run each command below separately, in order, in the same PowerShell session. Stop and resolve any error before continuing. Building the application project alone does not require the MSI installer toolchain.
+Build and run the complete application on Windows. Use **Windows 11 x64, version 24H2 or newer**, for the build and test environment described below; the existing test project requires Windows build 26100 or newer.
+
+- **Git for Windows** and internet access to restore NuGet dependencies.
+- **Visual Studio 2026**, updated, with the **.NET desktop development** workload and full MSBuild.
+- **.NET 10 SDK**.
+- **Windows SDK 10.0.26100.0**, selectable in Visual Studio Installer's individual components.
+- Windows' Remote Desktop client and its registered **`mstscax.dll` ActiveX component**.
+
+The existing [build workflow](../.github/workflows/Build_mR-NB.yml) uses these tools and transforms the assembly-info T4 template. Building the application project alone does not require the MSI installer toolchain. Building the MSI additionally requires its WiX and .NET Framework 4.8.1 custom-action dependencies; see [the branding build guide](app-branding.md#build-defaults-without-source-code-edits).
+
+### Build and launch
+
+Open **Developer PowerShell for Visual Studio 2026** from the Windows Start menu, or through Visual Studio's **Tools → Command Line → Developer PowerShell**. Run each command below separately, in order, in the same PowerShell session. Stop and resolve any error before continuing.
+
+Confirm that Visual Studio's MSBuild is available:
+
+```powershell
+MSBuild.exe -version
+```
+
+If `MSBuild.exe` is not recognized, open the Developer PowerShell shortcut associated with your Visual Studio installation. If the shortcut is missing, install or modify Visual Studio with the .NET desktop development workload. The standalone .NET SDK does not provide the full MSBuild required by this project's COM reference.
+
+For a fresh checkout, clone this feature branch. If you already cloned it, skip the next two commands and open your existing repository folder:
+
+```powershell
+git clone --branch feat/protected-frameless-rdp https://github.com/jrTilak/mRemoteNG.git
+```
+
+Enter the newly cloned repository:
+
+```powershell
+cd .\mRemoteNG
+```
+
+Stay in the repository root (the folder containing `mRemoteNG.sln`). The source project is in a second `mRemoteNG` folder inside that root. To customize the build's default name, icon or Start menu visibility, edit [`Branding.props`](../Branding.props) before building.
 
 Check the current folder. This must print `True`; if it prints `False`, change into the repository folder before continuing:
 
@@ -56,11 +90,13 @@ After a successful build, launch the application:
 .\mRemoteNG\bin\x64\Debug\mRemoteNG.exe
 ```
 
-Keep the entire output folder together when copying the application to another PC; this build requires .NET 10 Desktop Runtime on that PC. To build Release instead, use `Configuration=Release` in both restore and build commands and launch from `mRemoteNG\bin\x64\Release`. Build ARM64 on a matching Windows development environment using the platform configuration in the existing workflow. Building the entire `mRemoteNG.sln` also requires its existing WiX installer and custom-action dependencies.
+Keep the **entire output folder** together when copying the application to another PC. This framework-dependent build requires **.NET 10 Desktop Runtime** and the matching **Visual C++ Redistributable** listed in the [runtime requirements](../README.md#minimum-requirements). To build Release instead, use `Configuration=Release` in both restore and build commands and launch from `mRemoteNG\bin\x64\Release`. Build ARM64 on a matching Windows development environment using the platform configuration in the existing workflow. A successful dependency restore alone does not mean the application has been compiled.
 
 Pass the DLL reference as an absolute path, as above. A relative `-r:.\...` path can cause `dotnet-t4` to throw `System.IO.FileLoadException: The given assembly name was invalid`. `Resolve-Path` also confirms the DLL exists before transformation, and quoting the complete reference argument handles folder names containing spaces. If T4 instead says its input file does not exist, check that PowerShell is in the repository root; the source project is in the nested `mRemoteNG` folder.
 
 Use full Visual Studio `msbuild`, rather than `dotnet build`, for the application and tests: the project resolves a COM/ActiveX reference using `ResolveComReference`, which is unsupported by .NET-hosted MSBuild. Microsoft's [MSB4803 diagnostic](https://learn.microsoft.com/en-us/visualstudio/msbuild/errors/msb4803) describes this distinction.
+
+### Run the tests
 
 Build the existing NUnit suite on Windows:
 
@@ -78,7 +114,31 @@ The separate `mRemoteNGSpecs` project is not in the main solution and currently 
 
 ## Operation
 
-Launch the executable and open connections with the existing mRemoteNG UI. The application remains visible and interactive. Its opaque custom title bar contains the title, protection status, maximize/restore control and a close **X**. Drag its unused area to move the window, and resize with its borders. Maximizing keeps the local title bar available; ActiveX-controlled fullscreen is disabled.
+### Connect to a remote RDP desktop
+
+Use the remote server's existing **IP/hostname, port, username and password**. Remote Desktop must already be enabled on that server, the account must have permission to connect, and the server must be reachable from your PC over your network or VPN. The remote computer uses Windows' built-in RDP server; this client does not need to be installed there.
+
+1. Launch the application and find the **Connections** panel.
+2. Right-click its root or a folder and select **New Connection**.
+3. Give the connection a name, then select it.
+4. In **Config → Properties**, enter the values below.
+
+| Field | What to enter |
+| --- | --- |
+| **Hostname/IP** | The remote server's hostname or IP address, without the port. |
+| **Protocol** | `RDP`. |
+| **Port** | The supplied RDP port; normally `3389`. |
+| **Username** | Your supplied remote Windows username. |
+| **Password** | Your supplied remote Windows password. |
+| **Domain** | The supplied domain, if required; otherwise leave it blank. |
+
+Right-click the saved connection and select **Connect**. The remote desktop opens in a tab; click inside it to use your keyboard and mouse. For another session, create another connection or reconnect to an existing entry.
+
+If the **Connections** or **Config** panel is missing, select **View → Reset layout** and confirm. Keep Network Level Authentication and certificate checks enabled. For connectivity errors, first verify the supplied address, port and network/VPN access; for authentication errors, verify the remote account credentials and permissions.
+
+### Window controls
+
+The application remains visible and interactive. Its opaque custom title bar contains the title, protection status, maximize/restore control and a close **X**. Drag its unused area to move the window, and resize with its borders. Maximizing keeps the local title bar available; ActiveX-controlled fullscreen is disabled.
 
 The custom **X**, a local Alt+F4, and normal Windows close messages use the form's close path. Existing confirmation prompts still apply. Confirming exit closes connections and disposes the ActiveX controls and the capture timer. Canceling exit must leave the client visible and usable. There is no separate Stop/Disconnect control in the custom frame. Existing connection management continues to support reconnecting and closing individual sessions.
 
