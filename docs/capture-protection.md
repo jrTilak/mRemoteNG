@@ -6,23 +6,71 @@ This patch extends mRemoteNG. Microsoft Remote Desktop ActiveX still handles RDP
 
 Use the repository's Windows build environment: Visual Studio 2026 with .NET desktop development and full MSBuild, .NET 10 SDK, Windows SDK 10.0.26100.0, and the registered Microsoft Remote Desktop ActiveX component (`mstscax.dll`). The existing [build workflow](../.github/workflows/Build_mR-NB.yml) uses these tools and transforms the assembly-info T4 template. Windows 11 24H2 or newer is the appropriate test host for the existing test project's `SupportedOSPlatformVersion` of 10.0.26100.0.
 
-From Developer PowerShell at the repository root, build the application project without requiring the MSI installer toolchain:
+Open **Developer PowerShell for Visual Studio 2026** in your cloned repository root (the folder containing `mRemoteNG.sln`). The source project is in a second `mRemoteNG` folder inside that root. Run each command below separately, in order, in the same PowerShell session. Stop and resolve any error before continuing. Building the application project alone does not require the MSI installer toolchain.
+
+Check the current folder. This must print `True`; if it prints `False`, change into the repository folder before continuing:
+
+```powershell
+Test-Path .\mRemoteNG.sln
+```
+
+Install the T4 tool once. Skip this command if `dotnet-t4` is already installed:
 
 ```powershell
 dotnet tool install --global dotnet-t4
-t4 .\mRemoteNG\Properties\AssemblyInfo.tt -P platformType=x64 -r:.\mRemoteNG\libs\Microsoft.VisualStudio.Interop.dll
-dotnet restore .\mRemoteNG\mRemoteNG.csproj -p:Configuration=Debug -p:Platform=x64
-msbuild .\mRemoteNG\mRemoteNG.csproj /p:Configuration=Debug /p:Platform=x64 /p:MSBuildEnableWorkloadResolver=false /verbosity:minimal
 ```
 
-If `dotnet-t4` is already installed, omit its install command. The executable is `mRemoteNG\bin\x64\Debug\mRemoteNG.exe`. Build ARM64 on a matching Windows development environment using the platform configuration in the existing workflow. Building the entire `mRemoteNG.sln` also requires its existing WiX installer and custom-action dependencies.
+Make the installed tool available in this PowerShell session:
+
+```powershell
+$env:PATH += ";$env:USERPROFILE\.dotnet\tools"
+```
+
+Resolve the interop DLL to an absolute path:
+
+```powershell
+$rdpInterop = (Resolve-Path -LiteralPath .\mRemoteNG\libs\Microsoft.VisualStudio.Interop.dll -ErrorAction Stop).Path
+```
+
+Generate assembly version information:
+
+```powershell
+t4 .\mRemoteNG\Properties\AssemblyInfo.tt -P platformType=x64 "-r:$rdpInterop"
+```
+
+Restore application dependencies:
+
+```powershell
+dotnet restore .\mRemoteNG\mRemoteNG.csproj -p:Configuration=Debug -p:Platform=x64
+```
+
+Build the application with Visual Studio's full MSBuild:
+
+```powershell
+MSBuild.exe .\mRemoteNG\mRemoteNG.csproj /p:Configuration=Debug /p:Platform=x64 /p:MSBuildEnableWorkloadResolver=false /verbosity:minimal
+```
+
+After a successful build, launch the application:
+
+```powershell
+.\mRemoteNG\bin\x64\Debug\mRemoteNG.exe
+```
+
+Keep the entire output folder together when copying the application to another PC; this build requires .NET 10 Desktop Runtime on that PC. To build Release instead, use `Configuration=Release` in both restore and build commands and launch from `mRemoteNG\bin\x64\Release`. Build ARM64 on a matching Windows development environment using the platform configuration in the existing workflow. Building the entire `mRemoteNG.sln` also requires its existing WiX installer and custom-action dependencies.
+
+Pass the DLL reference as an absolute path, as above. A relative `-r:.\...` path can cause `dotnet-t4` to throw `System.IO.FileLoadException: The given assembly name was invalid`. `Resolve-Path` also confirms the DLL exists before transformation, and quoting the complete reference argument handles folder names containing spaces. If T4 instead says its input file does not exist, check that PowerShell is in the repository root; the source project is in the nested `mRemoteNG` folder.
 
 Use full Visual Studio `msbuild`, rather than `dotnet build`, for the application and tests: the project resolves a COM/ActiveX reference using `ResolveComReference`, which is unsupported by .NET-hosted MSBuild. Microsoft's [MSB4803 diagnostic](https://learn.microsoft.com/en-us/visualstudio/msbuild/errors/msb4803) describes this distinction.
 
-Build and run the existing NUnit suite on Windows:
+Build the existing NUnit suite on Windows:
 
 ```powershell
-msbuild .\mRemoteNGTests\mRemoteNGTests.csproj /restore /p:Configuration=Debug /p:Platform=x64 /p:MSBuildEnableWorkloadResolver=false /verbosity:minimal
+MSBuild.exe .\mRemoteNGTests\mRemoteNGTests.csproj /restore /p:Configuration=Debug /p:Platform=x64 /p:MSBuildEnableWorkloadResolver=false /verbosity:minimal
+```
+
+After a successful test build, run the suite:
+
+```powershell
 dotnet vstest .\mRemoteNGTests\bin\x64\Debug\mRemoteNGTests.dll /Logger:trx
 ```
 
@@ -89,6 +137,11 @@ Open Windows PowerShell 5.1 on the same interactive desktop, keep the test RDP w
 
 ```powershell
 powershell.exe -NoProfile -File .\Tools\CaptureProtection\Capture-DesktopBitBlt.ps1 -OutputPath "$env:TEMP\rdp-protected-bitblt.png"
+```
+
+Then repeat with `CAPTUREBLT` enabled:
+
+```powershell
 powershell.exe -NoProfile -File .\Tools\CaptureProtection\Capture-DesktopBitBlt.ps1 -OutputPath "$env:TEMP\rdp-protected-bitblt-layered.png" -IncludeLayeredWindows
 ```
 
