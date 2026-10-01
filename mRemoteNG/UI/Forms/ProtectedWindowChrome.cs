@@ -81,6 +81,7 @@ namespace mRemoteNG.UI.Forms
             const int WS_EX_TOOLWINDOW = 0x80;
             const int WS_EX_APPWINDOW = 0x40000;
             const int WS_EX_LAYERED = 0x80000;
+            parameters.Caption = string.Empty;
             parameters.ExStyle = (parameters.ExStyle | WS_EX_TOOLWINDOW) & ~(WS_EX_APPWINDOW | WS_EX_LAYERED);
             // DockPanelSuite can create a float handle in its base constructor, before
             // the derived constructor sets FormBorderStyle.None.
@@ -122,9 +123,11 @@ namespace mRemoteNG.UI.Forms
         private void Layout(object sender, LayoutEventArgs e) => LayoutCaption();
         private void UpdateTitle(object sender, EventArgs e)
         {
-            string title = string.IsNullOrWhiteSpace(_form.Text) ? ApplicationBranding.DisplayName : _form.Text;
-            _title.Text = _form is FrmMain || title == ApplicationBranding.DisplayName
-                ? title : $"{ApplicationBranding.DisplayName} - {title}";
+            // Main and floating hosts always have an empty native and custom title.
+            // DockPanelSuite can assign another caption when the active pane changes.
+            _title.Text = string.Empty;
+            if (_form.Text.Length != 0)
+                _form.Text = string.Empty;
         }
 
         private void RefreshBranding()

@@ -219,7 +219,7 @@ namespace mRemoteNG.UI.Forms
             MessageCollectorSetup.SetupMessageCollector(messageCollector, _messageWriters);
             MessageCollectorSetup.BuildMessageWritersFromSettings(_messageWriters);
             _brandingWarning = ApplicationBranding.Initialize();
-            Text = ApplicationBranding.DisplayName;
+            Text = string.Empty;
             if (_brandingWarning != null)
                 Logger.Instance.Log?.Warn(_brandingWarning);
  
@@ -774,8 +774,8 @@ namespace mRemoteNG.UI.Forms
                 return;
             }
 
-            // Keep the application title stable when files or selected sessions change.
-            Text = ApplicationBranding.DisplayName;
+            // Connection changes must not add a native window title.
+            Text = string.Empty;
 
             if (!string.IsNullOrEmpty(SelectedConnection?.Name) &&
                 Properties.Settings.Default.TrackActiveConnectionInConnectionTree)

@@ -223,7 +223,7 @@ dotnet run --project ./Tools/Packaging/Launcher/Tests/Launcher.Tests.csproj --co
 These checks cover extraction, reuse without overwriting settings, concurrent first launches, incomplete caches, and unsafe archive paths. They do not launch the Windows executable.
 
 1. On a separate compatible Windows x64 PC or clean VM, transfer only the final EXE and confirm it opens the client by double-click and from both PowerShell and Command Prompt.
-2. Confirm the client starts without a separately installed .NET runtime, subject to its remaining Windows/native prerequisites. Check the icon and configured title.
+2. Confirm the client starts without a separately installed .NET runtime, subject to its remaining Windows/native prerequisites. Check the icon and confirm that the main and floating window titles are blank.
 3. Close and reopen the same package; settings must persist. Try two launches close together during first extraction, and a path containing spaces.
 4. Exercise the [Windows verification checklist](capture-protection.md#windows-verification-checklist), including a real RDP connection, screenshot comparisons, keyboard/mouse input, and every close path.
 5. Confirm the launcher exits after starting the client and that closing the client leaves neither application nor launcher running.
