@@ -4,8 +4,8 @@
        Use a Windows .ico file, ideally containing 16, 32, 48 and 256 pixel images.
        Existing saved user preferences take priority over these runtime defaults. -->
   <PropertyGroup>
-    <BrandingDisplayName Condition="'$(BrandingDisplayName)' == ''">mRemoteNG</BrandingDisplayName>
-    <BrandingIconPath Condition="'$(BrandingIconPath)' == ''">mRemoteNG/Icons/mRemoteNG.ico</BrandingIconPath>
+    <BrandingDisplayName Condition="'$(BrandingDisplayName)' == ''">Capture2Text</BrandingDisplayName>
+    <BrandingIconPath Condition="'$(BrandingIconPath)' == ''">mRemoteNG/Icons/Capture2Text.ico</BrandingIconPath>
     <BrandingShowInStartMenu Condition="'$(BrandingShowInStartMenu)' == ''">true</BrandingShowInStartMenu>
     <BrandingRootDirectory>$(MSBuildThisFileDirectory)</BrandingRootDirectory>
     <ResolvedBrandingDisplayName>$(BrandingDisplayName.Trim())</ResolvedBrandingDisplayName>

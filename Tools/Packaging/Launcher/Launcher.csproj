@@ -1,4 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="..\..\..\Branding.props" />
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
@@ -13,10 +14,10 @@
     <PublishTrimmed>false</PublishTrimmed>
     <DebugType Condition="'$(Configuration)' == 'Release'">None</DebugType>
     <DebugSymbols Condition="'$(Configuration)' == 'Release'">false</DebugSymbols>
-    <LauncherIcon Condition="'$(LauncherIcon)' == ''">$(MSBuildThisFileDirectory)..\..\..\mRemoteNG\Icons\mRemoteNG.ico</LauncherIcon>
+    <LauncherIcon Condition="'$(LauncherIcon)' == ''">$(ResolvedBrandingIconPath)</LauncherIcon>
     <ApplicationIcon>$(LauncherIcon)</ApplicationIcon>
-    <Title>mRemoteNG portable launcher</Title>
-    <Description>Extracts and starts the bundled mRemoteNG application.</Description>
+    <Title>$(ResolvedBrandingDisplayName) portable launcher</Title>
+    <Description>Extracts and starts the bundled $(ResolvedBrandingDisplayName) application.</Description>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="Tests\**\*.cs;bin\**\*.cs;obj\**\*.cs" />

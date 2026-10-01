@@ -1,6 +1,6 @@
 # Application name, icon and Start menu visibility
 
-Open **Tools → Options → Appearance** to change the application name, select a Windows `.ico` file, or enable **Hide this app's shortcut from my Start menu**. Save with **Apply** or **OK**. When a branding preference changes, the app offers to restart so the new preferences take effect. Declining keeps the current session running; the saved preferences apply on the next launch. Restart uses the normal exit path, including existing connection-close confirmations. If exit is canceled, the current process continues.
+Open **File → Options → Appearance** to change the application name, select a Windows `.ico` file, or enable **Hide this app's shortcut from my Start menu**. Save with **Apply** or **OK**. When a branding preference changes, the app offers to restart so the new preferences take effect. Declining keeps the current session running; the saved preferences apply on the next launch. Restart uses the normal exit path, including existing connection-close confirmations. If exit is canceled, the current process continues.
 
 Leave the name or icon empty to use its build default. The reset button restores all three build defaults. Names are limited to 80 characters and must be valid Windows shortcut filenames; surrounding whitespace is trimmed. Icon files must be valid, nonempty `.ico` files no larger than 4 MiB. Selected icons are copied into the settings directory's `Branding` subfolder, so moving the original icon later does not break the preference. The settings directory must be writable, including for portable installations.
 
@@ -22,11 +22,13 @@ Edit the three values in [`Branding.props`](../Branding.props), then rebuild the
 
 | Property | Default | Effect |
 | --- | --- | --- |
-| `BrandingDisplayName` | `mRemoteNG` | Default runtime title, executable title/file description, installer display name and installer shortcut label. |
-| `BrandingIconPath` | `mRemoteNG/Icons/mRemoteNG.ico` | Icon embedded in the executable and MSI. Runtime uses this icon unless the user selects another. |
+| `BrandingDisplayName` | `Capture2Text` | Default runtime title, executable title/file description, installer display name and installer shortcut label. |
+| `BrandingIconPath` | `mRemoteNG/Icons/Capture2Text.ico` | Icon embedded in the executable and MSI. Runtime uses this icon unless the user selects another. |
 | `BrandingShowInStartMenu` | `true` | Initial current-user Start shortcut visibility; set `false` to hide it by default. |
 
 The icon path can be absolute or relative to the repository root. Supply an `.ico` containing 16, 32, 48 and 256 pixel images for useful Windows scaling. Build validation rejects invalid names, missing/non-ICO icon paths and invalid boolean values; the compiler validates the icon data. Use ordinary XML escaping in the file, such as `&amp;` for `&`.
+
+This fork defaults to the Capture2Text name and the icon extracted from the supplied `Capture2Text.exe`. The checked-in icon preserves its original 16, 32, 48, 64 and 128 pixel images. The portable launcher's default title/icon also follow `Branding.props`; the packaging script takes its icon from the published client. Existing saved branding preferences still take priority: reset to build defaults and restart to use the new defaults.
 
 From a Windows Visual Studio Developer PowerShell with the repository's .NET/Windows/COM build requirements installed:
 

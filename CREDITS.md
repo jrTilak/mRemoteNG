@@ -125,3 +125,9 @@ GNU General Public License (GPL) Version 3
 **[ConsoleControl](https://github.com/dwmkerr/consolecontrol)**  
 Copyright © 2015 Dave Kerr  
 MIT License  
+
+# Included Artwork
+
+**Capture2Text application icon**
+
+The default icon in `mRemoteNG/Icons/Capture2Text.ico` was extracted from the supplied `Capture2Text.exe`. Its original 16, 32, 48, 64 and 128 pixel images are preserved without pixel changes.
