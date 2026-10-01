@@ -6,6 +6,8 @@ Leave the name or icon empty to use its build default. The reset button restores
 
 The runtime name and icon affect the application's custom title bars and its managed Start menu shortcut. They do not rewrite the running executable or its version resources. Task Manager can show window titles, executable file descriptions, icons or process filenames in different views. The filename remains **mRemoteNG.exe**, and the process remains listed. Windows may cache shortcut icons and search results.
 
+The main window title stays equal to the configured application name (by default, **Capture2Text**). Loading a connections file, using a database or switching sessions does not append a filename, path or connection name. The former full-connections-path title option is hidden and its saved value has no effect on the title. Changing the application name still takes effect after restarting.
+
 ## Start menu behavior
 
 The toggle controls only shortcuts in the current user's **Programs\mRemoteNG** folder that point to this exact executable without launch arguments. Enabling visibility creates or updates the named shortcut; hiding removes matching shortcuts. Renaming removes the old matching entry after the replacement has been written. A shortcut for another executable is never overwritten or removed. If Windows refuses a shortcut operation, the app reports the problem.
@@ -59,6 +61,7 @@ The build generates title, description and runtime-default assembly metadata sep
 Windows runtime verification is still required. In addition to the [capture-protection checklist](capture-protection.md#windows-verification-checklist), check:
 
 1. Save a different title and valid icon, decline restart, and confirm the current window retains its old appearance. Launch again and check main/floating title bars and the Start shortcut.
+   Load another connections file and switch between sessions. Confirm the main window title remains exactly the configured application name and active-connection tracking in the Connections tree still works when enabled.
 2. Accept restart with active RDP sessions. Check both confirming and canceling the existing exit prompt. Confirm a successful restart leaves exactly one client process and applies the saved settings. Also close the app with unsaved Appearance edits: Cancel or a failed save (for example, an invalid name or unreadable icon) must keep the app and sessions open. Saving during application exit must not offer another restart prompt.
 3. Hide the Start shortcut, restart, and check current-user Programs. Show it again and check its label, target, working directory and icon. Repeat title changes and confirm old matching entries disappear.
 4. Put a shortcut to an unrelated program in the managed folder, including one with the requested title. Confirm it is preserved and a naming conflict is reported.

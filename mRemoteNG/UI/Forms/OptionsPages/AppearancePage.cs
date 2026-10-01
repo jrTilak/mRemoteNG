@@ -16,6 +16,8 @@ namespace mRemoteNG.UI.Forms.OptionsPages
         public AppearancePage()
         {
             InitializeComponent();
+            // The main window always uses the app name without a connection-file suffix.
+            chkShowFullConnectionsFilePathInTitle.Visible = false;
             InitializeBrandingControls();
             ApplyTheme();
             PageIcon = Resources.ImageConverter.GetImageAsIcon(Properties.Resources.Panel_16x);

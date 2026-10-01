@@ -23,9 +23,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.Globalization;
-using System.IO;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using mRemoteNG.UI.Panels;
@@ -776,36 +774,12 @@ namespace mRemoteNG.UI.Forms
                 return;
             }
 
-            StringBuilder titleBuilder = new(ApplicationBranding.DisplayName);
-            const string separator = " - ";
+            // Keep the application title stable when files or selected sessions change.
+            Text = ApplicationBranding.DisplayName;
 
-            if (Runtime.ConnectionsService.IsConnectionsFileLoaded)
-            {
-                if (Runtime.ConnectionsService.UsingDatabase)
-                {
-                    titleBuilder.Append(separator);
-                    titleBuilder.Append(Language.SQLServer.TrimEnd(':'));
-                }
-                else
-                {
-                    if (!string.IsNullOrEmpty(Runtime.ConnectionsService.ConnectionFileName))
-                    {
-                        titleBuilder.Append(separator);
-                        titleBuilder.Append(Properties.OptionsAppearancePage.Default.ShowCompleteConsPathInTitle ? Runtime.ConnectionsService.ConnectionFileName : Path.GetFileName(Runtime.ConnectionsService.ConnectionFileName));
-                    }
-                }
-            }
-
-            if (!string.IsNullOrEmpty(SelectedConnection?.Name))
-            {
-                titleBuilder.Append(separator);
-                titleBuilder.Append(SelectedConnection.Name);
-
-                if (Properties.Settings.Default.TrackActiveConnectionInConnectionTree)
-                    AppWindows.TreeForm.JumpToNode(SelectedConnection);
-            }
-
-            Text = titleBuilder.ToString();
+            if (!string.IsNullOrEmpty(SelectedConnection?.Name) &&
+                Properties.Settings.Default.TrackActiveConnectionInConnectionTree)
+                AppWindows.TreeForm.JumpToNode(SelectedConnection);
         }
 
         public void ShowHidePanelTabs(DockContent? closingDocument = null)
