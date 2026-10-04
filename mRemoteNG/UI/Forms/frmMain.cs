@@ -253,6 +253,9 @@ namespace mRemoteNG.UI.Forms
             
             CredsAndConsSetup credsAndConsSetup = new();
             credsAndConsSetup.LoadCredsAndCons();
+            // F9 can close the main form from a nested first-run/password dialog.
+            // Do not resume startup against controls already disposed by shutdown.
+            if (IsClosing || IsDisposed || Disposing) return;
 
             // Initialize panel binding for Connections and Config panels
             UI.Panels.PanelBinder.Instance.Initialize();

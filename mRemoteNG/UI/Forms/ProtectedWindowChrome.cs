@@ -45,7 +45,7 @@ namespace mRemoteNG.UI.Forms
             _title = new Label { TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true, UseMnemonic = false };
             _status = new Label
             {
-                Text = _protectionStatus, TextAlign = ContentAlignment.MiddleRight,
+                Name = "CaptureProtectionStatus", Text = _protectionStatus, TextAlign = ContentAlignment.MiddleRight,
                 AutoEllipsis = true, UseMnemonic = false, AccessibleName = "Capture protection status"
             };
             _maximize = CreateButton("□", "Maximize or restore window");
@@ -70,7 +70,9 @@ namespace mRemoteNG.UI.Forms
             }
             manager.Register(form, status =>
             {
-                _protectionStatus = status.DisplayText;
+                // Keep checking the native flag, but reserve the frame text for
+                // pending protection and errors that need the user's attention.
+                _protectionStatus = status.Enabled ? string.Empty : status.DisplayText;
                 RefreshStatus();
             });
             form.Resize += Resize;
@@ -157,7 +159,9 @@ namespace mRemoteNG.UI.Forms
         {
             string hotKeyError = _alwaysOnTop?.StatusError;
             _status.Text = string.IsNullOrEmpty(hotKeyError)
-                ? _protectionStatus : $"{_protectionStatus} | {hotKeyError}";
+                ? _protectionStatus
+                : string.IsNullOrEmpty(_protectionStatus) ? hotKeyError : $"{_protectionStatus} | {hotKeyError}";
+            _status.Visible = _status.Text.Length > 0;
             LayoutCaption();
         }
 
@@ -171,8 +175,9 @@ namespace mRemoteNG.UI.Forms
                 _caption.SetBounds(border, border, Math.Max(0, _form.ClientSize.Width - border * 2), height);
                 _close.SetBounds(_caption.Width - buttonWidth, 0, buttonWidth, height);
                 _maximize.SetBounds(_close.Left - buttonWidth, 0, buttonWidth, height);
-                int statusWidth = Math.Min(Math.Max(0, _maximize.Left - gap * 2),
-                    TextRenderer.MeasureText(_status.Text, _status.Font).Width + gap);
+                int statusWidth = _status.Text.Length == 0 ? 0 :
+                    Math.Min(Math.Max(0, _maximize.Left - gap * 2),
+                        TextRenderer.MeasureText(_status.Text, _status.Font).Width + gap);
                 _status.SetBounds(Math.Max(0, _maximize.Left - gap - statusWidth), 0, statusWidth, height);
                 int titleLeft = gap;
                 _title.SetBounds(titleLeft, 0, Math.Max(0, _status.Left - titleLeft - gap), height);

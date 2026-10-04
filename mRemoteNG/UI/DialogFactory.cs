@@ -34,7 +34,15 @@ namespace mRemoteNG.UI
         /// <param name="messageText"></param>
         /// <param name="showCancelButton"></param>
         public static void ShowLoadConnectionsFailedDialog(string connectionFileName, string messageText, bool showCancelButton)
+            => ShowLoadConnectionsFailedDialog(connectionFileName, messageText, showCancelButton,
+                () => Runtime.IsMainWindowClosing);
+
+        internal static void ShowLoadConnectionsFailedDialog(string connectionFileName, string messageText,
+            bool showCancelButton, Func<bool> isClosing)
         {
+            // Password cancellation can finish after F9 has already disposed
+            // its main-window owner. Do not start another modal recovery loop.
+            if (isClosing()) return;
             List<string> commandButtons = new()
             {
                 Language.ConfigurationCreateNew,
@@ -46,18 +54,23 @@ namespace mRemoteNG.UI
                 commandButtons.Add(Language._Cancel);
 
             bool answered = false;
-            while (!answered)
+            while (!answered && !isClosing())
             {
                 try
                 {
                     CTaskDialog.ShowTaskDialogBox(GeneralAppInfo.ProductName, messageText, "", "", "", "", "", string.Join(" | ", commandButtons), ETaskDialogButtons.None, ESysIcons.Question, ESysIcons.Question);
+                    if (isClosing()) return;
 
                     switch (CTaskDialog.CommandButtonResult)
                     {
                         case 0: // New
-                            SaveFileDialog saveAsDialog = ConnectionsSaveAsDialog();
-                            saveAsDialog.ShowDialog();
-                            Runtime.ConnectionsService.NewConnectionsFile(saveAsDialog.FileName);
+                            using (SaveFileDialog saveAsDialog = ConnectionsSaveAsDialog())
+                            {
+                                DialogResult result = saveAsDialog.ShowDialog();
+                                if (isClosing()) return;
+                                if (result != DialogResult.OK) break;
+                                Runtime.ConnectionsService.NewConnectionsFile(saveAsDialog.FileName);
+                            }
                             answered = true;
                             break;
                         case 1: // Load

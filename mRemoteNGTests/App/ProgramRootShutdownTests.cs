@@ -2,12 +2,16 @@ using System;
 using System.Threading;
 using System.Windows.Forms;
 using mRemoteNG.App;
+using mRemoteNG.UI;
+using mRemoteNG.UI.Forms;
+using mRemoteNG.UI.TaskDialog;
 using NUnit.Framework;
 
 namespace mRemoteNGTests.App
 {
     [TestFixture]
     [Platform("Win")]
+    [NonParallelizable]
     public class ProgramRootShutdownTests
     {
         [TestCase(false)]
@@ -104,6 +108,47 @@ namespace mRemoteNGTests.App
                 ProgramRoot.CloseAfterUiException(main, true, () => exits++);
 
                 Assert.That(exits, Is.Zero);
+            });
+        }
+
+        [Test]
+        public void ClosingDuringTheStartupPasswordPromptReturnsFromApplicationRunWithoutRecoveryUi()
+        {
+            OnFreshUiThread(() =>
+            {
+                using var main = new Form { ShowInTaskbar = false };
+                using var password = new FrmPassword("shutdown-regression.xml", newPasswordMode: false);
+                DialogResult passwordResult = DialogResult.None;
+                int recoveryPrompts = 0;
+                bool returnedFromLoad = false;
+                EventHandler recoveryShown = (_, _) => recoveryPrompts++;
+                CTaskDialog.OnTaskDialogShown += recoveryShown;
+                password.Shown += (_, _) => main.Close();
+                main.Load += (_, _) =>
+                {
+                    // Startup loads an encrypted file before the main message
+                    // loop has settled. F9 must cancel this owned prompt, then
+                    // bypass the decryption-failure recovery dialog entirely.
+                    passwordResult = ProtectedDialog.Show(password, main);
+                    DialogFactory.ShowLoadConnectionsFailedDialog("shutdown-regression.xml",
+                        "Decrypting connection file failed", false, () => main.IsDisposed);
+                    returnedFromLoad = true;
+                };
+                try
+                {
+                    Application.Run(main);
+                }
+                finally
+                {
+                    CTaskDialog.OnTaskDialogShown -= recoveryShown;
+                }
+
+                Assert.That(returnedFromLoad, Is.True);
+                Assert.That(main.IsDisposed, Is.True);
+                Assert.That(password.IsDisposed, Is.True);
+                Assert.That(passwordResult, Is.EqualTo(DialogResult.Cancel));
+                Assert.That(recoveryPrompts, Is.Zero,
+                    "The service's null/decryption-failure path must not start a new prompt after shutdown.");
             });
         }
 

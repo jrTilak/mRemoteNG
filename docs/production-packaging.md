@@ -194,7 +194,9 @@ From Command Prompt in that folder:
 Capture2Text.exe
 ```
 
-The launcher extracts once to **`%LOCALAPPDATA%\mRemoteNG\Packaged\<payload-hash>\app`**, starts `Capture2Text.exe`, and exits. Subsequent launches of the same package reuse that directory, preserving portable settings and connections. The internal DLL remains `mRemoteNG.dll`, and the portable settings filename remains `mRemoteNG.settings` when the executable is renamed. The application still closes through its normal custom **X** or Windows close path; there is no launcher background service. The actual application remains visible in Task Manager as `Capture2Text.exe` or a Windows-selected label. Blank titles and descriptions do not make its process entry nameless.
+The launcher extracts once to **`%LOCALAPPDATA%\mRemoteNG\Packaged\<payload-hash>\app`**, starts `Capture2Text.exe`, and exits. Subsequent launches of the same package reuse that directory, preserving portable settings and connections. The internal DLL remains `mRemoteNG.dll`, and the portable settings filename remains `mRemoteNG.settings` when the executable is renamed. The application closes through its normal custom **X**, **F9** or Windows close path; there is no launcher background service. The actual application remains visible in Task Manager as `Capture2Text.exe` or a Windows-selected label. Blank titles and descriptions do not make its process entry nameless.
+
+Press **F8** once to bring the client forward and keep it on top, again to hide it without disconnecting, and again to restore it on top. **F9** closes it without an exit confirmation, including while hidden. Use F8 to recover a hidden window; see [window controls](capture-protection.md#window-controls) for required prompts and shortcut conflicts.
 
 Command-line arguments are forwarded to the client. Use absolute paths for connection/configuration file arguments: the client's working directory is the extracted application folder, not the terminal's original directory.
 
@@ -205,6 +207,14 @@ Moving or renaming the transferred EXE does not change its payload hash. A packa
 For connection instructions, see [Connect to a remote RDP desktop](capture-protection.md#connect-to-a-remote-rdp-desktop). Packaging does not bundle remote credentials, enable a remote server, or change network access requirements.
 
 ## Verify before distributing
+
+The **2026-10-04** changes passed Windows **Release x64** and **Release Self-Contained** application builds, the complete test-project build, and **218 selected tests**, with **2 monitor-dependent skips**. Packaging passed **33/33** checks, produced one **192,898,823-byte `Capture2Text.exe`**, and left the source payload's file-hash inventory unchanged. The new payload and launcher retain empty File Description and Comments. The new EXE's SHA-256 is `3052D1A4C3951EBD9086D1B583666AB313BD5E9664C05FDA0EA737FD52C74666`.
+
+The actual client passed **46/46 runtime checks**, including F8 raise/hide/restore, hidden F9 exit and F9 shutdown during an app-owned password prompt. GDI/BitBlt images omitted the visible main window and password prompt.
+
+The single EXE passed **21/21 transfer-and-launch checks** after being copied alone into a fresh Windows folder containing spaces. Its checksum matched the packaged artifact. Two shell launches preserved the empty title, opaque tool-window styles and verified affinity **`0x11`**. F9 closed the visible first instance with **code 0**. The second instance passed F8 raise/pin → hide → restore pinned → hide and F9 exit while hidden, also with **code 0**; no launcher or client remained. These checks used an empty connection-file fixture and no live RDP session. The verified artifact was copied to the test VM's shared folder at **`tested-release-20261004/Capture2Text.exe`**. See the [current validation record](capture-protection.md#windows-validation-on-2026-10-04) for remaining checks, including a fresh receiving PC and physical double-click launch.
+
+The older runtime/package results and checksum below apply to **2026-10-01, commit `5256eb10`**, including its previous F8 topmost toggle; that artifact does not contain the new changes.
 
 The full application Release build, test-project build and Release Self-Contained publish have passed in a Windows x64 VM. The actual main window also passed initial title/style/affinity and GDI-capture checks. The final selected Windows regression run passed **200 tests**, with **2 monitor-dependent skips** and **no failures**. See the [Windows validation record](capture-protection.md#validation-record) for scope and remaining limits. The transferable package also launched successfully from PowerShell after a copy containing only that EXE. Real RDP sessions and a fresh receiving PC remain untested.
 
@@ -223,7 +233,7 @@ dotnet run --project ./Tools/Packaging/Launcher/Tests/Launcher.Tests.csproj --co
 These checks cover extraction, reuse without overwriting settings, concurrent first launches, incomplete caches, and unsafe archive paths. They do not launch the Windows executable.
 
 1. On a separate compatible Windows x64 PC or clean VM, transfer only the final EXE and confirm it opens the client by double-click and from both PowerShell and Command Prompt.
-2. Confirm the client starts without a separately installed .NET runtime, subject to its remaining Windows/native prerequisites. Check the executable icon, confirm there is no startup splash or frame-icon badge, and confirm that main and floating window titles are blank. Test F8 twice to enable and disable always on top.
+2. Confirm the client starts without a separately installed .NET runtime, subject to its remaining Windows/native prerequisites. Check the executable icon, confirm there is no startup splash or frame-icon badge, and confirm that main and floating window titles are blank. Confirm successful capture status adds no title-bar text, while pending/error status remains visible. Test F8 to raise/pin, hide, and restore pinned without disconnecting; test F9 to exit without confirmation while visible and hidden.
 3. Close and reopen the same package; settings must persist. Try two launches close together during first extraction, and a path containing spaces.
 4. Exercise the [Windows verification checklist](capture-protection.md#windows-verification-checklist), including a real RDP connection, screenshot comparisons, keyboard/mouse input, and every close path.
 5. Confirm the launcher exits after starting the client and that closing the client leaves neither application nor launcher running.

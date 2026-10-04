@@ -88,6 +88,80 @@ namespace mRemoteNGTests.UI.Forms
             Assert.That(dialog.DialogResult, Is.EqualTo(DialogResult.Yes));
         }
 
+        [NonParallelizable]
+        [TestCase(MessageBoxButtons.YesNo, false)]
+        [TestCase(MessageBoxButtons.YesNo, true)]
+        [TestCase(MessageBoxButtons.OK, false)]
+        [TestCase(MessageBoxButtons.OKCancel, true)]
+        public void ClosingTheOwnerCancelsAPendingDecisionWithoutSelectingItsDefault(
+            MessageBoxButtons buttons, bool hiddenOwner)
+        {
+            using var owner = new Form { ShowInTaskbar = false };
+            _ = owner.Handle;
+            if (!hiddenOwner) owner.Show();
+            using frmTaskDialog dialog = Create(buttons);
+            Exception closeError = null;
+            bool ownerClosingRaised = false;
+            dialog.FormClosing += (_, args) => ownerClosingRaised |= args.CloseReason == CloseReason.FormOwnerClosing;
+            dialog.Shown += (_, _) =>
+            {
+                try
+                {
+                    // F9 calls the main form's normal Close path even while
+                    // disabled by ShowDialog or hidden. Never click a decision.
+                    owner.Close();
+                }
+                catch (Exception error)
+                {
+                    closeError = error;
+                }
+                finally
+                {
+                    // Prevent a regression from leaving the test host in a
+                    // modal loop; assertions still reject a canceled exit.
+                    if (!owner.IsDisposed) dialog.Dispose();
+                }
+            };
+
+            DialogResult result = ProtectedDialog.Show(dialog, owner, dialog.BuildForm,
+                dialog.SetCaptureProtectionStatus);
+
+            Assert.That(closeError, Is.Null, closeError?.ToString());
+            Assert.That(owner.IsDisposed, Is.True);
+            Assert.That(dialog.IsDisposed, Is.True);
+            Assert.That(ownerClosingRaised, Is.True);
+            Assert.That(result, Is.EqualTo(DialogResult.Cancel), "Shutdown must not answer Yes or OK.");
+        }
+
+        [Test]
+        [NonParallelizable]
+        public void ClosingTheOwnerLeavesTheStartupCommandUnselected()
+        {
+            using var owner = new Form { ShowInTaskbar = false };
+            _ = owner.Handle;
+            using var dialog = new frmTaskDialog
+            {
+                Owner = owner,
+                Buttons = ETaskDialogButtons.None,
+                CommandButtons = "Create a connection file|Choose a file|Exit",
+                DefaultButtonIndex = 0
+            };
+            dialog.Shown += (_, _) =>
+            {
+                try { owner.Close(); }
+                finally { if (!owner.IsDisposed) dialog.Dispose(); }
+            };
+
+            DialogResult result = ProtectedDialog.Show(dialog, prepare: dialog.BuildForm,
+                statusChanged: dialog.SetCaptureProtectionStatus);
+
+            Assert.That(owner.IsDisposed, Is.True);
+            Assert.That(dialog.IsDisposed, Is.True);
+            Assert.That(result, Is.EqualTo(DialogResult.Cancel));
+            Assert.That(dialog.CommandButtonClickedIndex, Is.EqualTo(-1),
+                "Quitting while a startup prompt is pending must not create or import a file.");
+        }
+
         [Test]
         public void RebuildingPreservesTheDefaultAndRemovesStaleCancelActions()
         {

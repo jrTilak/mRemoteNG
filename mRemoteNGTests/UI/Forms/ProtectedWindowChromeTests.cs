@@ -47,18 +47,43 @@ namespace mRemoteNGTests.UI.Forms
             Assert.That(form.Padding.Top, Is.GreaterThanOrEqualTo(caption.Bottom));
         }
 
+        [Test]
+        public void VerifiedProtectionHidesSuccessTextAndFailuresRemainVisibleUntilRecovery()
+        {
+            var api = new FakeAffinityApi();
+            using var form = new ChromeForm(false, api);
+            form.Show();
+            Control status = form.Controls["ProtectedTitleBar"].Controls["CaptureProtectionStatus"];
+
+            Assert.That(status.Text, Is.Empty);
+            Assert.That(status.Visible, Is.False);
+
+            api.ErrorCode = 5;
+            form.CheckProtection();
+            Assert.That(status.Text, Is.EqualTo("Capture protection: failed — error 5"));
+            Assert.That(status.Visible, Is.True);
+
+            api.ErrorCode = 0;
+            form.CheckProtection();
+            Assert.That(status.Text, Is.Empty);
+            Assert.That(status.Visible, Is.False);
+        }
+
         private sealed class ChromeForm : Form
         {
-            private readonly CaptureProtectionManager _manager = new(new FakeAffinityApi());
+            private readonly CaptureProtectionManager _manager;
             private ProtectedWindowChrome _chrome;
 
-            internal ChromeForm(bool createHandleBeforeChrome)
+            internal ChromeForm(bool createHandleBeforeChrome, FakeAffinityApi api = null)
             {
+                _manager = new CaptureProtectionManager(api ?? new FakeAffinityApi());
                 StartPosition = FormStartPosition.Manual;
                 Bounds = new Rectangle(Screen.PrimaryScreen.WorkingArea.Location, new Size(800, 500));
                 if (createHandleBeforeChrome) _ = Handle;
                 _chrome = new ProtectedWindowChrome(this, _manager);
             }
+
+            internal void CheckProtection() => _manager.CheckRegisteredForms();
 
             protected override CreateParams CreateParams => ProtectedWindowChrome.AdjustCreateParams(base.CreateParams);
 
@@ -82,6 +107,7 @@ namespace mRemoteNGTests.UI.Forms
 
         private sealed class FakeAffinityApi : IDisplayAffinityApi
         {
+            internal int ErrorCode { get; set; }
             public bool SupportsCaptureExclusion => true;
             public bool TryValidateWindow(IntPtr window, out int errorCode, out string detail)
             {
@@ -92,13 +118,13 @@ namespace mRemoteNGTests.UI.Forms
             public bool TryGetAffinity(IntPtr window, out uint affinity, out int errorCode)
             {
                 affinity = CaptureProtectionPolicy.WDA_EXCLUDEFROMCAPTURE;
-                errorCode = 0;
-                return true;
+                errorCode = ErrorCode;
+                return errorCode == 0;
             }
             public bool TrySetAffinity(IntPtr window, uint affinity, out int errorCode)
             {
-                errorCode = 0;
-                return true;
+                errorCode = ErrorCode;
+                return errorCode == 0;
             }
         }
 

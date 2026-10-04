@@ -64,6 +64,9 @@ namespace mRemoteNG.App
 
         #region Connections Loading/Saving
 
+        internal static bool IsMainWindowClosing => FrmMain.IsCreated &&
+            (FrmMain.Default.IsClosing || FrmMain.Default.IsDisposed || FrmMain.Default.Disposing);
+
         public static void LoadConnectionsAsync()
         {
             Thread t = new(LoadConnectionsBGd);
@@ -85,6 +88,7 @@ namespace mRemoteNG.App
         /// </param>
         public static void LoadConnections(bool withDialog = false)
         {
+            if (IsMainWindowClosing) return;
             string connectionFileName = "";
 
             try
@@ -108,6 +112,7 @@ namespace mRemoteNG.App
                 }
 
                 ConnectionsService.LoadConnections(Properties.OptionsDBsPage.Default.UseSQLServer, false, connectionFileName);
+                if (IsMainWindowClosing) return;
 
                 if (Properties.OptionsDBsPage.Default.UseSQLServer)
                 {
@@ -123,11 +128,15 @@ namespace mRemoteNG.App
             }
             catch (Exception ex)
             {
+                // A nested startup/password dialog can be canceled by F9 while
+                // loading. Do not present recovery UI after its owner has closed.
+                if (IsMainWindowClosing) return;
                 if (Properties.OptionsDBsPage.Default.UseSQLServer)
                 {
                     MessageCollector.AddExceptionMessage(Language.LoadFromSqlFailed, ex);
                     string commandButtons = string.Join("|", Language._TryAgain, Language.CommandOpenConnectionFile, Language.Exit);
                     CTaskDialog.ShowCommandBox(Application.ProductName ?? string.Empty, Language.LoadFromSqlFailed, Language.LoadFromSqlFailedContent, MiscTools.GetExceptionMessageRecursive(ex), "", "", commandButtons, false, ESysIcons.Error, ESysIcons.Error);
+                    if (IsMainWindowClosing) return;
                     switch (CTaskDialog.CommandButtonResult)
                     {
                         case 0:
@@ -159,11 +168,12 @@ namespace mRemoteNG.App
                     };
 
                     bool answered = false;
-                    while (!answered)
+                    while (!answered && !IsMainWindowClosing)
                     {
                         try
                         {
                             CTaskDialog.ShowTaskDialogBox(GeneralAppInfo.ProductName ?? string.Empty, Language.ConnectionFileNotFound, "", "", "", "", "", string.Join(" | ", commandButtons), ETaskDialogButtons.None, ESysIcons.Question, ESysIcons.Question);
+                            if (IsMainWindowClosing) return;
 
                             switch (CTaskDialog.CommandButtonResult)
                             {

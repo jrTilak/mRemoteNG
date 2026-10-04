@@ -77,6 +77,17 @@ namespace mRemoteNG.UI.Forms
                         !active.InvokeRequired)
                         owner = active;
                 }
+                if (owner == null && FrmMain.IsCreated)
+                {
+                    // Startup prompts can appear before the main form is active,
+                    // and F8 can leave it hidden. Keep those dialogs in its owned
+                    // window chain so normal shutdown cancels their modal loop.
+                    // Never construct the lazy main form just to show a dialog.
+                    FrmMain main = FrmMain.Default;
+                    if (main != form && !main.IsClosing && !main.IsDisposed && !main.Disposing &&
+                        main.IsHandleCreated && !main.InvokeRequired)
+                        owner = main;
+                }
                 return owner == null ? form.ShowDialog() : form.ShowDialog(owner);
             }
             finally
